@@ -8,7 +8,13 @@ However, the brand-new architecture [unitree-sdk2 ](https://github.com/unitreero
 
 ## Requirements 
 * miniconda
-* pytorch 1.10 with cuda-11.3
+    ```bash
+    conda create -n wtw python==3.8.20
+    ```
+* ~~pytorch 1.10 with cuda-11.3~~ pytorch 1.13 with cuda 11.7
+    ```bash
+    pip install torch==1.13.1+cu117 torchvision==0.14.1 --extra-index-url https://download.pytorch.org/whl/cu117
+    ```
 * Isaac Gym
 * Nvidia GPU with at least 8GB of VRAM
 
