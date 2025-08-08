@@ -10,11 +10,11 @@ def train_go2(headless=True):
 
     from ml_logger import logger
 
-    from go2_gym_learn.ppo_cse import Runner
+    from go2_gym_learn.ppo_cse import PPOEMLPRunner
     from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
-    from go2_gym_learn.ppo_cse.actor_critic import AC_Args
-    from go2_gym_learn.ppo_cse.ppo import PPO_Args
-    from go2_gym_learn.ppo_cse import RunnerArgs
+    from go2_gym_learn.ppo_cse.actor_critic_symmetric import ACS_Args
+    from go2_gym_learn.ppo_cse.ppo_symmetric import PPOEMLP_Args
+    from go2_gym_learn.ppo_cse import PPOEMLPRunnerArgs
 
     config_go2(Cfg)
 
@@ -78,7 +78,7 @@ def train_go2(headless=True):
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
 
     Cfg.env.num_privileged_obs = 2
-    Cfg.env.num_observation_history = 30
+    Cfg.env.num_observation_history = 5 # 30 is the default value, which kills the program.
     Cfg.reward_scales.feet_contact_forces = 0.0
 
     Cfg.domain_rand.rand_interval_s = 4
@@ -154,7 +154,7 @@ def train_go2(headless=True):
     Cfg.commands.yaw_command_curriculum = False
 
     Cfg.commands.lin_vel_x = [-0.0, 0.0]
-    Cfg.commands.lin_vel_y = [-1.0, 0.0]
+    Cfg.commands.lin_vel_y = [-1.0, -0]
     Cfg.commands.ang_vel_yaw = [0.0, 0.0]
     Cfg.commands.body_height_cmd = [-0.25, 0.15]
     Cfg.commands.gait_frequency_cmd_range = [2.0, 4.0]
@@ -169,7 +169,7 @@ def train_go2(headless=True):
     Cfg.commands.stance_length_range = [0.35, 0.45]
 
     Cfg.commands.limit_vel_x = [-0.0, 0.0]
-    Cfg.commands.limit_vel_y = [-1, 0]
+    Cfg.commands.limit_vel_y = [-1, -0]
     Cfg.commands.limit_vel_yaw = [0.0, 0.0]
     Cfg.commands.limit_body_height = [-0.25, 0.15]
     Cfg.commands.limit_gait_frequency = [2.0, 4.0]
@@ -207,17 +207,17 @@ def train_go2(headless=True):
     Cfg.commands.binary_phases = True
     Cfg.commands.gaitwise_curricula = True
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=True, cfg=Cfg)
     print(env.obs_buf.size())
 
     # log the experiment parameters
-    logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
+    logger.log_params(AC_Args=vars(ACS_Args), PPO_Args=vars(PPOEMLP_Args), RunnerArgs=vars(PPOEMLPRunnerArgs),
                       Cfg=vars(Cfg))
 
     env = HistoryWrapper(env)
     gpu_id = 0
-    runner = Runner(env, device=f"cuda:{gpu_id}")
-    runner.learn(num_learning_iterations=4000, init_at_random_ep_len=True, eval_freq=100)
+    runner = PPOEMLPRunner(env, device=f"cuda:{gpu_id}")
+    runner.learn(num_learning_iterations=3000, init_at_random_ep_len=True, eval_freq=100)
 
 
 if __name__ == '__main__':
@@ -226,7 +226,7 @@ if __name__ == '__main__':
     from go2_gym import MINI_GYM_ROOT_DIR
 
     stem = Path(__file__).stem
-    logger.configure(logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
+    logger.configure(logger.now(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
                      root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
     logger.log_text("""
                 charts: 

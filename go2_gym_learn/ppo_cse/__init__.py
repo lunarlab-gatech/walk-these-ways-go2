@@ -237,18 +237,25 @@ class Runner:
 
                     os.makedirs(path, exist_ok=True)
 
-                    adaptation_module_path = f'{path}/adaptation_module_latest.jit'
-                    adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
-                    traced_script_adaptation_module = torch.jit.script(adaptation_module)
-                    traced_script_adaptation_module.save(adaptation_module_path)
+                    # adaptation_module_path = f'{path}/adaptation_module_latest.jit'
+                    # adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
+                    # traced_script_adaptation_module = torch.jit.script(adaptation_module)
+                    # traced_script_adaptation_module.save(adaptation_module_path)
 
-                    body_path = f'{path}/body_latest.jit'
-                    body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
-                    traced_script_body_module = torch.jit.script(body_model)
-                    traced_script_body_module.save(body_path)
+                    # body_path = f'{path}/body_latest.jit'
+                    # body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
+                    # traced_script_body_module = torch.jit.script(body_model)
+                    # traced_script_body_module.save(body_path)
 
-                    logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
-                    logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
+                    '''
+                        EMLP does not support jit
+                    '''
+                    logger.torch_save(self.alg.actor_critic.adaptation_module.state_dict(), f'checkpoints/adaptation_module.pkl')
+                    logger.torch_save(self.alg.actor_critic.actor_body.state_dict(), f'checkpoints/actor_body.pkl')
+                    logger.torch_save(self.alg.actor_critic.critic_body.state_dict(), f'checkpoints/critic_body.pkl')
+
+                    # logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
+                    # logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
 
             self.current_learning_iteration += num_learning_iterations
 
@@ -257,21 +264,27 @@ class Runner:
             logger.duplicate(f"checkpoints/ac_weights_{it:06d}.pt", f"checkpoints/ac_weights_last.pt")
 
             path = './tmp/legged_data'
-
             os.makedirs(path, exist_ok=True)
 
-            adaptation_module_path = f'{path}/adaptation_module_latest.jit'
-            adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
-            traced_script_adaptation_module = torch.jit.script(adaptation_module)
-            traced_script_adaptation_module.save(adaptation_module_path)
+            # adaptation_module_path = f'{path}/adaptation_module_latest.jit'
+            # adaptation_module = copy.deepcopy(self.alg.actor_critic.adaptation_module).to('cpu')
+            # traced_script_adaptation_module = torch.jit.script(adaptation_module)
+            # traced_script_adaptation_module.save(adaptation_module_path)
 
-            body_path = f'{path}/body_latest.jit'
-            body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
-            traced_script_body_module = torch.jit.script(body_model)
-            traced_script_body_module.save(body_path)
+            # body_path = f'{path}/body_latest.jit'
+            # body_model = copy.deepcopy(self.alg.actor_critic.actor_body).to('cpu')
+            # traced_script_body_module = torch.jit.script(body_model)
+            # traced_script_body_module.save(body_path)
 
-            logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
-            logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
+            '''
+                EMLP does not support jit
+            '''
+            logger.torch_save(self.alg.actor_critic.adaptation_module.state_dict(), f'checkpoints/adaptation_module.pkl')
+            logger.torch_save(self.alg.actor_critic.actor_body.state_dict(), f'checkpoints/actor_body.pkl')
+            logger.torch_save(self.alg.actor_critic.critic_body.state_dict(), f'checkpoints/critic_body.pkl')
+
+            # logger.upload_file(file_path=adaptation_module_path, target_path=f"checkpoints/", once=False)
+            # logger.upload_file(file_path=body_path, target_path=f"checkpoints/", once=False)
 
 
     def log_video(self, it):
@@ -306,3 +319,58 @@ class Runner:
         if device is not None:
             self.alg.actor_critic.to(device)
         return self.alg.actor_critic.act_expert
+
+
+
+
+
+# PPO EMLP
+from .actor_critic_symmetric import ActorCriticSymm
+
+class PPOEMLPRunnerArgs(PrefixProto, cli=False):
+    # runner
+    algorithm_class_name = 'PPO_EMLP'
+    num_steps_per_env = 24  # per iteration
+    max_iterations = 1500  # number of policy updates
+
+    # logging
+    save_interval = 1000  # check for potential saves every this many iterations
+    save_video_interval = 1000
+    log_freq = 10
+
+    # load and resume
+    resume = False
+    load_run = -1  # -1 = last run
+    checkpoint = -1  # -1 = last saved model
+    resume_path = None  # updated from load_run and chkpt
+
+
+class PPOEMLPRunner(Runner):
+    '''
+        Remember to uncomment torch.jit.script in Runner!
+    '''
+    def __init__(self, env, device='cpu'):
+        from .ppo_symmetric import PPOEMLP
+
+        self.device = device
+        self.env = env
+
+        actor_critic = ActorCriticSymm(
+            self.env.num_obs,
+            self.env.num_privileged_obs,
+            self.env.num_obs_history,
+            self.env.num_actions,
+        ).to(self.device)
+        self.alg = PPOEMLP(actor_critic, device=self.device)
+        self.num_steps_per_env = PPOEMLPRunnerArgs.num_steps_per_env
+
+        # init storage and model
+        self.alg.init_storage(self.env.num_train_envs, self.num_steps_per_env, [self.env.num_obs],
+                              [self.env.num_privileged_obs], [self.env.num_obs_history], [self.env.num_actions])
+
+        self.tot_timesteps = 0
+        self.tot_time = 0
+        self.current_learning_iteration = 0
+        self.last_recording_it = 0
+
+        self.env.reset()

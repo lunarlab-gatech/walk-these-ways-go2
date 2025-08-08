@@ -19,3 +19,5 @@ __pycache__/
 
 go2_gym_deploy/build/
 go2_gym_deploy/unitree_sdk2_bin/library/unitree_sdk2/build/
+
+runs/

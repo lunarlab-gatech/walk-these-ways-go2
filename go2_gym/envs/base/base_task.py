@@ -33,8 +33,8 @@ class BaseTask(gym.Env):
 
         # graphics device for rendering, -1 for no rendering
         self.graphics_device_id = self.sim_device_id
-        if self.headless == True:
-            self.graphics_device_id = self.sim_device_id
+        # if self.headless == True:
+        #     self.graphics_device_id = self.sim_device_id
 
         self.num_obs = cfg.env.num_observations
         self.num_privileged_obs = cfg.env.num_privileged_obs
@@ -75,6 +75,10 @@ class BaseTask(gym.Env):
         self.enable_viewer_sync = True
         self.viewer = None
 
+        # record
+        self.cam_env_id = 0
+        self.camera_handle = None
+
         # if running with a viewer, set up keyboard shortcuts and camera
         if self.headless == False:
             # subscribe to keyboard shortcuts
@@ -84,6 +88,22 @@ class BaseTask(gym.Env):
                 self.viewer, gymapi.KEY_ESCAPE, "QUIT")
             self.gym.subscribe_viewer_keyboard_event(
                 self.viewer, gymapi.KEY_V, "toggle_viewer_sync")
+        
+        if cfg.record.record:
+            camera_properties = gymapi.CameraProperties()
+            camera_properties.width = 640
+            camera_properties.height = 480
+            camera_handle = self.gym.create_camera_sensor(self.envs[self.cam_env_id], camera_properties)
+            self.camera_handle = camera_handle
+            
+            local_transform = gymapi.Transform()
+            # local_transform.p = gymapi.Vec3(*[3, 3, 3])
+            local_transform.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(*[0, 0, 1]), np.pi/2)
+            # self.gym.attach_camera_to_body(self.camera_handle, self.envs[self.cam_env_id], 0, local_transform, getattr(gymapi, 'FOLLOW_POSITION'))
+            self.gym.set_camera_location(camera_handle, self.envs[self.cam_env_id], gymapi.Vec3(4,4,3), gymapi.Vec3(1,1,0))
+            print(f'Attached camera {self.camera_handle} to env {self.cam_env_id}!')
+
+
 
     def get_observations(self):
         return self.obs_buf

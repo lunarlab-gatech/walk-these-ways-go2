@@ -121,9 +121,9 @@ def run_env(render=False, headless=False):
 
     Cfg.reward_scales.collision = -5.0
 
-    Cfg.commands.lin_vel_x = [-1.0, 1.0]
-    Cfg.commands.lin_vel_y = [-0.6, 0.6]
-    Cfg.commands.ang_vel_yaw = [-1.0, 1.0]
+    Cfg.commands.lin_vel_x = [-0.0, 0.0]
+    Cfg.commands.lin_vel_y = [0.0, 0.0]
+    Cfg.commands.ang_vel_yaw = [0.0, 1.0]
     Cfg.commands.body_height_cmd = [-0.25, 0.15]
     Cfg.commands.gait_frequency_cmd_range = [1.5, 4.0]
     Cfg.commands.gait_phase_cmd_range = [0.0, 1.0]

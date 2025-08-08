@@ -4,6 +4,10 @@ from params_proto import PrefixProto, ParamsProto
 
 
 class Cfg(PrefixProto, cli=False):
+    class record(PrefixProto, cli = False):
+        record = False
+        folder = ""
+    
     class env(PrefixProto, cli=False):
         num_envs = 4096
         num_observations = 235
@@ -130,15 +134,15 @@ class Cfg(PrefixProto, cli=False):
         distribution_update_extension_distance = 1
         curriculum_seed = 100
 
-        lin_vel_x = [-1.0, 1.0]  # min max [m/s]
-        lin_vel_y = [-1.0, 1.0]  # min max [m/s]
-        ang_vel_yaw = [-1, 1]  # min max [rad/s]
+        lin_vel_x = [0.0, 0.0]  # min max [m/s]
+        lin_vel_y = [-1.0, 0.0]  # min max [m/s]
+        ang_vel_yaw = [0, 0]  # min max [rad/s]
         body_height_cmd = [-0.05, 0.05]
         impulse_height_commands = False
 
-        limit_vel_x = [-10.0, 10.0]
-        limit_vel_y = [-0.6, 0.6]
-        limit_vel_yaw = [-10.0, 10.0]
+        limit_vel_x = [0.0, 0.0]
+        limit_vel_y = [-1, 0]
+        limit_vel_yaw = [0.0, 0.0]
         limit_body_height = [-0.05, 0.05]
         limit_gait_phase = [0, 0.01]
         limit_gait_offset = [0, 0.01]
@@ -153,9 +157,9 @@ class Cfg(PrefixProto, cli=False):
         limit_stance_width = [0.0, 0.01]
         limit_stance_length = [0.0, 0.01]
 
-        num_bins_vel_x = 25
-        num_bins_vel_y = 3
-        num_bins_vel_yaw = 25
+        num_bins_vel_x = 1 # 25
+        num_bins_vel_y = 21 # 3
+        num_bins_vel_yaw = 1 # 25
         num_bins_body_height = 1
         num_bins_gait_frequency = 11
         num_bins_gait_phase = 11

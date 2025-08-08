@@ -25,15 +25,27 @@ def extract_index(filename):
 
 
 
-def load_policy(logdir):
-    body = torch.jit.load(logdir + '/checkpoints/body_latest.jit')
+def load_policy(logdir, env):
     import os
-    adaptation_module = torch.jit.load(logdir + '/checkpoints/adaptation_module_latest.jit')
+    from go2_gym_learn.ppo_cse import PPOEMLPRunner
+
+    runner = PPOEMLPRunner(env, device = 'cpu')
+
+    runner.alg.actor_critic.adaptation_module.load_state_dict(torch.load(os.path.join(logdir, 'checkpoints/adaptation_module.pkl')), strict = False)
+    runner.alg.actor_critic.actor_body.load_state_dict(torch.load(os.path.join(logdir, 'checkpoints/actor_body.pkl')), strict = False)
+
+    adaptation_module = runner.alg.actor_critic.adaptation_module
+    adaptation_module.eval()
+
+    actor_body = runner.alg.actor_critic.actor_body
+    actor_body.eval()
+    
+    in_field_type = runner.alg.actor_critic.in_field_type
 
     def policy(obs, info={}):
-        i = 0
         latent = adaptation_module.forward(obs["obs_history"].to('cpu'))
-        action = body.forward(torch.cat((obs["obs_history"].to('cpu'), latent), dim=-1))
+        x = in_field_type(torch.cat((obs["obs_history"].to('cpu'), latent), dim=-1))
+        action = actor_body.forward(x).tensor
         info['latent'] = latent
         return action
 
@@ -42,7 +54,7 @@ def load_policy(logdir):
 
 def load_env(label, headless=False):
     dirs = glob.glob(f"../runs/{label}/*")
-    logdir = sorted(dirs)[0]
+    logdir = sorted(dirs)[-1] # Latest
 
     with open(logdir + "/parameters.pkl", 'rb') as file:
         pkl_cfg = pkl.load(file)
@@ -59,9 +71,8 @@ def load_env(label, headless=False):
 
     Cfg.record.record = True
     Cfg.record.folder = 'exported_image/'
-    if os.path.exists(Cfg.record.folder):
-        os.remove(Cfg.record.folder)
-    os.makedirs(Cfg.record.folder)
+    if not os.path.exists(Cfg.record.folder):
+        os.makedirs(Cfg.record.folder)
 
     Cfg.commands.yaw_command_curriculum = True
 
@@ -103,9 +114,9 @@ def load_env(label, headless=False):
 
     # load policy
     from ml_logger import logger
-    from go2_gym_learn.ppo_cse.actor_critic import ActorCritic
+    from go2_gym_learn.ppo_cse.actor_critic_symmetric import ActorCriticSymm
 
-    policy = load_policy(logdir)
+    policy = load_policy(logdir, env)
 
     return env, policy
 
@@ -131,7 +142,7 @@ def play_go2(headless=True):
              "pacing": [0, 0, 0.5]}
 
     # x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.0
-    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, -0.5, 0.0
+    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.5, 0.0
     body_height_cmd = 0.0
     step_frequency_cmd = 3.0 #3.0
     
@@ -197,12 +208,12 @@ def play_go2(headless=True):
     axs.set_xlabel("Time (s)")
     axs.set_ylabel("Velocity (m/s)")
 
-    # axs[1].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), measured_x_vels, color='black', linestyle="-", label="Measured")
-    # axs[1].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), target_x_vels, color='black', linestyle="--", label="Desired")
-    # axs[1].legend()
-    # axs[1].set_title("Forward Linear Velocity")
-    # axs[1].set_xlabel("Time (s)")
-    # axs[1].set_ylabel("Velocity (m/s)")
+    # axs.plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), measured_x_vels, color='black', linestyle="-", label="Measured")
+    # axs.plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), target_x_vels, color='black', linestyle="--", label="Desired")
+    # axs.legend()
+    # axs.set_title("Forward Linear Velocity")
+    # axs.set_xlabel("Time (s)")
+    # axs.set_ylabel("Velocity (m/s)")
 
     # axs[2].plot(np.linspace(0, num_eval_steps * env.dt, num_eval_steps), joint_positions, linestyle="-", label="Measured")
     # axs[2].set_title("Joint Positions")

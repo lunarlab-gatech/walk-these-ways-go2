@@ -15,6 +15,8 @@ from go2_gym.utils.math_utils import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from go2_gym.utils.terrain import Terrain
 from .legged_robot_config import Cfg
 
+from PIL import Image as im
+
 
 class LeggedRobot(BaseTask):
     def __init__(self, cfg: Cfg, sim_params, physics_engine, sim_device, headless, eval_cfg=None,
@@ -85,6 +87,15 @@ class LeggedRobot(BaseTask):
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
+
+
+        if self.cfg.record.record:
+            image = self.get_camera_image()
+            image = im.fromarray(image.astype(np.uint8))
+            filename = os.path.join(self.cfg.record.folder, "%d.png" % self.common_step_counter)
+            image.save(filename)
+
+
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def post_physics_step(self):
@@ -317,13 +328,24 @@ class LeggedRobot(BaseTask):
         #                               ), dim=-1)
 
         if self.cfg.env.observe_command:
+            # self.obs_buf = torch.cat((self.projected_gravity,
+            #                           self.commands * self.commands_scale,
+            #                           (self.dof_pos[:, :self.num_actuated_dof] - self.default_dof_pos[:,
+            #                                                                      :self.num_actuated_dof]) * self.obs_scales.dof_pos,
+            #                           self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel,
+            #                           self.actions
+            #                           ), dim=-1)
+
+            switch_xyvel_cmds = self.commands.clone()
+            switch_xyvel_cmds[:, 0], switch_xyvel_cmds[:, 1] = switch_xyvel_cmds[:, 1], switch_xyvel_cmds[:, 0]
             self.obs_buf = torch.cat((self.projected_gravity,
-                                      self.commands * self.commands_scale,
+                                      switch_xyvel_cmds * self.commands_scale,
                                       (self.dof_pos[:, :self.num_actuated_dof] - self.default_dof_pos[:,
                                                                                  :self.num_actuated_dof]) * self.obs_scales.dof_pos,
                                       self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel,
                                       self.actions
                                       ), dim=-1)
+
 
         if self.cfg.env.observe_two_prev_actions:
             self.obs_buf = torch.cat((self.obs_buf,
@@ -1359,8 +1381,8 @@ class LeggedRobot(BaseTask):
             for curriculum in self.curricula:
                 curriculum.set_params(lipschitz_threshold=self.cfg.commands.lipschitz_threshold,
                                       binary_phases=self.cfg.commands.binary_phases)
-        self.env_command_bins = np.zeros(len(env_ids), dtype=np.int)
-        self.env_command_categories = np.zeros(len(env_ids), dtype=np.int)
+        self.env_command_bins = np.zeros(len(env_ids), dtype=int)
+        self.env_command_categories = np.zeros(len(env_ids), dtype=int)
         low = np.array(
             [self.cfg.commands.lin_vel_x[0], self.cfg.commands.lin_vel_y[0],
              self.cfg.commands.ang_vel_yaw[0], self.cfg.commands.body_height_cmd[0],
@@ -1804,3 +1826,16 @@ class LeggedRobot(BaseTask):
         heights = torch.min(heights, heights3)
 
         return heights.view(len(env_ids), -1) * self.terrain.cfg.vertical_scale
+    
+
+
+
+
+    # For recording
+    def get_camera_image(self):
+        self.gym.fetch_results(self.sim, True)
+        self.gym.step_graphics(self.sim)
+        self.gym.render_all_camera_sensors(self.sim)
+        image = self.gym.get_camera_image(self.sim, self.envs[self.cam_env_id], self.camera_handle, gymapi.IMAGE_COLOR)
+        image = image.reshape((image.shape[0], -1, 4))
+        return image
