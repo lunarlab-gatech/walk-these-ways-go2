@@ -118,9 +118,10 @@ def play_go2(headless=True):
     import glob
     import os
 
+    # TODO: 修改label
     # label = "gait-conditioned-agility/pretrain-v0/train"
     # label = "gait-conditioned-agility/pretrain-go2/train"
-    label = "gait-conditioned-agility/2025-07-29/train_emlp"
+    label = "gait-conditioned-agility/2025-08-08/train_emlp"
 
     env, policy = load_env(label, headless=headless)
 
@@ -131,7 +132,7 @@ def play_go2(headless=True):
              "pacing": [0, 0, 0.5]}
 
     # x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 1.5, 0.0, 0.0
-    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, -0.5, 0.0
+    x_vel_cmd, y_vel_cmd, yaw_vel_cmd = 0.0, 0.5, 0.0
     body_height_cmd = 0.0
     step_frequency_cmd = 3.0 #3.0
     
