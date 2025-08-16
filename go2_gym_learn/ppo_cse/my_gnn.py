@@ -7,8 +7,8 @@ class myGNN(torch.nn.Module):
     """
     Standard GNN for the graph structure with 13 nodes (1 base + 12 joint)
     """
-    def __init__(self, task, hidden_channels: int, num_layers: int, 
-                 activation_fn = nn.ELU(), batch_size: int = 1024, is_critic: bool = False):
+    def __init__(self, hidden_channels: int, num_layers: int, 
+                 activation_fn = nn.ELU(), batch_size: int = 4096, is_critic: bool = False):
         """
         Implementation of a standard GNN model for the graph structure.
 
@@ -17,8 +17,6 @@ class myGNN(torch.nn.Module):
             num_layers (int): Number of message-passing layers.
             activation_fn (class): The activation function used between layers.
         """
-        print(f"------- GNN for task: {task} -------")
-        self.task = task
         super().__init__()
         self.activation = activation_fn
         self.batch_size_default = batch_size
@@ -52,27 +50,27 @@ class myGNN(torch.nn.Module):
             | Ground restitution coefficient| 1     | base, joint  |
                 
             Feature Assignment
-            | Node  | Node      | Common             | Privileged                |
-            | Index | Name      | Feature Index      | Feature Index             |
-            |-------|-----------|--------------------|---------------------------|
-            | 0     | base      |  *range(18)        | x |
-            | 1     | FL-hip    | 18, 30, 42, 54, 66 | 0, 1 |
-            | 2     | FL-thigh  | 19, 31, 43, 55, 66 | 0, 1 |
-            | 3     | FL-knee   | 20, 32, 44, 56, 66 | 0, 1 |
-            | 4     | FR-hip    | 21, 33, 45, 57, 67 | 0, 1 |
-            | 5     | FR-thigh  | 22, 34, 46, 58, 67 | 0, 1 |
-            | 6     | FR-knee   | 23, 35, 47, 59, 67 | 0, 1 |
-            | 7     | RL-hip    | 24, 36, 48, 60, 68 | 0, 1 |
-            | 8     | RL-thigh  | 25, 37, 49, 61, 68 | 0, 1 |
-            | 9     | RL-knee   | 26, 38, 50, 62, 68 | 0, 1 |
-            | 10    | RR-hip    | 27, 39, 51, 63, 69 | 0, 1 |
-            | 11    | RR-thigh  | 28, 40, 52, 64, 69 | 0, 1 |
-            | 12    | RR-knee   | 29, 41, 53, 65, 69 | 0, 1 |
+            | Node  | Node      | Common             | Privileged    |
+            | Index | Name      | Feature Index      | Feature Index |
+            |-------|-----------|--------------------|---------------|
+            | 0     | base      |  *range(18)        | 0, 1          |
+            | 1     | FL-hip    | 18, 30, 42, 54, 66 | 0, 1          |
+            | 2     | FL-thigh  | 19, 31, 43, 55, 66 | 0, 1          |
+            | 3     | FL-knee   | 20, 32, 44, 56, 66 | 0, 1          |
+            | 4     | FR-hip    | 21, 33, 45, 57, 67 | 0, 1          |
+            | 5     | FR-thigh  | 22, 34, 46, 58, 67 | 0, 1          |
+            | 6     | FR-knee   | 23, 35, 47, 59, 67 | 0, 1          |
+            | 7     | RL-hip    | 24, 36, 48, 60, 68 | 0, 1          |
+            | 8     | RL-thigh  | 25, 37, 49, 61, 68 | 0, 1          |
+            | 9     | RL-knee   | 26, 38, 50, 62, 68 | 0, 1          |
+            | 10    | RR-hip    | 27, 39, 51, 63, 69 | 0, 1          |
+            | 11    | RR-thigh  | 28, 40, 52, 64, 69 | 0, 1          |
+            | 12    | RR-knee   | 29, 41, 53, 65, 69 | 0, 1          |
             '''
-            self.num_timesteps = 3
-            self.dim_common_obs = 47
+            self.num_timesteps = 30   # obs_history_length
+            self.dim_common_obs = 70  # num_obs
             self.node_dict = {
-                0: {'name': 'base', 'common': [*range(18)], 'privileged': []},
+                0: {'name': 'base', 'common': [*range(18)], 'privileged': [0, 1]},
                 1: {'name': 'FL-hip', 'common': [18, 30, 42, 54, 66], 'privileged': [0, 1]},
                 2: {'name': 'FL-thigh', 'common': [19, 31, 43, 55, 66], 'privileged': [0, 1]},
                 3: {'name': 'FL-knee', 'common': [20, 32, 44, 56, 66], 'privileged': [0, 1]},
@@ -98,14 +96,9 @@ class myGNN(torch.nn.Module):
         self.len_common_obs = self.num_timesteps * self.dim_common_obs
         
         # Create separate encoders for base, F-joint, R-joint nodes
-        if self.is_critic:
-            self.base_encoder = nn.Linear(self.node_type_dict['base']['common_input_dim']*self.num_timesteps + self.node_type_dict['base']['privileged_input_dim'], hidden_channels)
-            self.F_joint_encoder = nn.Linear(self.node_type_dict['F-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['F-joint']['privileged_input_dim'], hidden_channels)
-            self.R_joint_encoder = nn.Linear(self.node_type_dict['R-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['R-joint']['privileged_input_dim'], hidden_channels)
-        else:
-            self.base_encoder = nn.Linear(self.node_type_dict['base']['common_input_dim']*self.num_timesteps, hidden_channels)
-            self.F_joint_encoder = nn.Linear(self.node_type_dict['F-joint']['common_input_dim']*self.num_timesteps, hidden_channels)
-            self.R_joint_encoder = nn.Linear(self.node_type_dict['R-joint']['common_input_dim']*self.num_timesteps, hidden_channels)
+        self.base_encoder = nn.Linear(self.node_type_dict['base']['common_input_dim']*self.num_timesteps + self.node_type_dict['base']['privileged_input_dim'], hidden_channels)
+        self.F_joint_encoder = nn.Linear(self.node_type_dict['F-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['F-joint']['privileged_input_dim'], hidden_channels)
+        self.R_joint_encoder = nn.Linear(self.node_type_dict['R-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['R-joint']['privileged_input_dim'], hidden_channels)
         
         # Create standard graph convolutions for each layer
         self.convs = torch.nn.ModuleList()
@@ -182,26 +175,27 @@ class myGNN(torch.nn.Module):
             rear_joint_feature_list.append(common_obs[:, :, self.node_dict[node_idx]['common']].unsqueeze(1).flatten(start_dim=2)) # [b, 1, T * dim]
         rear_joint_feature = torch.cat(rear_joint_feature_list, dim=1) # [b, 6, T * dim]
         
-        if self.is_critic:
-            privileged_obs = deepcopy(obs_all[:, self.len_common_obs:])
-            privileged_base_feature_list = []
-            for node_idx in self.node_type_dict['base']['node_indices']:
-                privileged_base_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
-            privileged_base_feature = torch.cat(privileged_base_feature_list, dim=1) # [b, 1, dim]
-            base_feature = torch.cat((base_feature, privileged_base_feature), dim=-1)
-            
-            privileged_front_joint_feature_list = []
-            for node_idx in self.node_type_dict['F-joint']['node_indices']:
-                privileged_front_joint_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
-            privileged_front_joint_feature = torch.cat(privileged_front_joint_feature_list, dim=1) # [b, 6, dim]
-            front_joint_feature = torch.cat((front_joint_feature, privileged_front_joint_feature), dim=-1)
-            
-            privileged_rear_joint_feature_list = []
-            for node_idx in self.node_type_dict['R-joint']['node_indices']:
-                privileged_rear_joint_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
-            privileged_rear_joint_feature = torch.cat(privileged_rear_joint_feature_list, dim=1) # [b, 6, dim]
-            rear_joint_feature = torch.cat((rear_joint_feature, privileged_rear_joint_feature), dim=-1)
+        # if self.is_critic:
+        privileged_obs = deepcopy(obs_all[:, self.len_common_obs:])
+        privileged_base_feature_list = []
+        for node_idx in self.node_type_dict['base']['node_indices']:
+            privileged_base_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
+        privileged_base_feature = torch.cat(privileged_base_feature_list, dim=1) # [b, 1, dim]
+        base_feature = torch.cat((base_feature, privileged_base_feature), dim=-1)
         
+        privileged_front_joint_feature_list = []
+        for node_idx in self.node_type_dict['F-joint']['node_indices']:
+            privileged_front_joint_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
+        privileged_front_joint_feature = torch.cat(privileged_front_joint_feature_list, dim=1) # [b, 6, dim]
+        front_joint_feature = torch.cat((front_joint_feature, privileged_front_joint_feature), dim=-1)
+        
+        privileged_rear_joint_feature_list = []
+        for node_idx in self.node_type_dict['R-joint']['node_indices']:
+            privileged_rear_joint_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
+        privileged_rear_joint_feature = torch.cat(privileged_rear_joint_feature_list, dim=1) # [b, 6, dim]
+        rear_joint_feature = torch.cat((rear_joint_feature, privileged_rear_joint_feature), dim=-1)
+            
+        # TODO: this hard code is not good, need to be improved
         if batch_size == 5:
             edge_index = self.edge_index_batch_5
         elif batch_size == 1024:

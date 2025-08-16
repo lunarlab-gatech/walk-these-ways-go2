@@ -317,17 +317,17 @@ class LeggedRobot(BaseTask):
         #                               ), dim=-1)
 
         if self.cfg.env.observe_command:
-            self.obs_buf = torch.cat((self.projected_gravity,
-                                      self.commands * self.commands_scale,
+            self.obs_buf = torch.cat((self.projected_gravity, #[B, 3]
+                                      self.commands * self.commands_scale, #[B, 15]
                                       (self.dof_pos[:, :self.num_actuated_dof] - self.default_dof_pos[:,
-                                                                                 :self.num_actuated_dof]) * self.obs_scales.dof_pos,
-                                      self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel,
-                                      self.actions
+                                                                                 :self.num_actuated_dof]) * self.obs_scales.dof_pos, #[B, 12]
+                                      self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel, #[B, 12]
+                                      self.actions #[B, 12]
                                       ), dim=-1)
 
         if self.cfg.env.observe_two_prev_actions:
             self.obs_buf = torch.cat((self.obs_buf,
-                                      self.last_actions), dim=-1)
+                                      self.last_actions), dim=-1) #[B, 12]
 
         if self.cfg.env.observe_timing_parameter:
             self.obs_buf = torch.cat((self.obs_buf,
@@ -335,7 +335,7 @@ class LeggedRobot(BaseTask):
 
         if self.cfg.env.observe_clock_inputs:
             self.obs_buf = torch.cat((self.obs_buf,
-                                      self.clock_inputs), dim=-1)
+                                      self.clock_inputs), dim=-1) #[B, 4]
 
         # if self.cfg.env.observe_desired_contact_states:
         #     self.obs_buf = torch.cat((self.obs_buf,
@@ -379,7 +379,7 @@ class LeggedRobot(BaseTask):
 
         self.privileged_obs_buf = torch.empty(self.num_envs, 0).to(self.device)
         self.next_privileged_obs_buf = torch.empty(self.num_envs, 0).to(self.device)
-
+        # TODO: check the priv_obs's information
         if self.cfg.env.priv_observe_friction:
             friction_coeffs_scale, friction_coeffs_shift = get_scale_shift(self.cfg.normalization.friction_range)
             self.privileged_obs_buf = torch.cat((self.privileged_obs_buf,

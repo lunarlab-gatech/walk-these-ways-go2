@@ -2,18 +2,33 @@ import torch
 import torch.nn as nn
 from params_proto import PrefixProto
 from torch.distributions import Normal
-
+from .network_manager import NetworkManager
 
 class AC_Args(PrefixProto, cli=False):
-    # policy
     init_noise_std = 1.0
-    actor_hidden_dims = [512, 256, 128]
-    critic_hidden_dims = [512, 256, 128]
     activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-
     adaptation_module_branch_hidden_dims = [256, 128]
-
     use_decoder = False
+    
+    # Network architecture selection
+    network_architecture = "mlp"
+    
+    # MLP specific configuration
+    class mlp(PrefixProto, cli=False):
+        actor_hidden_dims = [512, 256, 128]
+        critic_hidden_dims = [512, 256, 128]
+    
+    # GNN specific configuration
+    class gnn(PrefixProto, cli=False):
+        hidden_dim = 128
+        num_layers = 8
+        activation = 'elu'
+    
+    # EMLP specific configuration
+    class emlp(PrefixProto, cli=False):
+        hidden_dims = [512, 256, 128]
+        group_type = "SO3"
+        activation = 'elu'
 
 
 class ActorCritic(nn.Module):
@@ -23,6 +38,7 @@ class ActorCritic(nn.Module):
                  num_privileged_obs,
                  num_obs_history,
                  num_actions,
+                 network_architecture="mlp",
                  **kwargs):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str(
@@ -49,42 +65,32 @@ class ActorCritic(nn.Module):
                               AC_Args.adaptation_module_branch_hidden_dims[l + 1]))
                 adaptation_module_layers.append(activation)
         self.adaptation_module = nn.Sequential(*adaptation_module_layers)
-
-
-
-        # Policy
-        actor_layers = []
-        actor_layers.append(nn.Linear(self.num_privileged_obs + self.num_obs_history, AC_Args.actor_hidden_dims[0]))
-        actor_layers.append(activation)
-        for l in range(len(AC_Args.actor_hidden_dims)):
-            if l == len(AC_Args.actor_hidden_dims) - 1:
-                actor_layers.append(nn.Linear(AC_Args.actor_hidden_dims[l], num_actions))
-            else:
-                actor_layers.append(nn.Linear(AC_Args.actor_hidden_dims[l], AC_Args.actor_hidden_dims[l + 1]))
-                actor_layers.append(activation)
-        self.actor_body = nn.Sequential(*actor_layers)
-
-        # Value function
-        critic_layers = []
-        critic_layers.append(nn.Linear(self.num_privileged_obs + self.num_obs_history, AC_Args.critic_hidden_dims[0]))
-        critic_layers.append(activation)
-        for l in range(len(AC_Args.critic_hidden_dims)):
-            if l == len(AC_Args.critic_hidden_dims) - 1:
-                critic_layers.append(nn.Linear(AC_Args.critic_hidden_dims[l], 1))
-            else:
-                critic_layers.append(nn.Linear(AC_Args.critic_hidden_dims[l], AC_Args.critic_hidden_dims[l + 1]))
-                critic_layers.append(activation)
-        self.critic_body = nn.Sequential(*critic_layers)
-
+        
         print(f"Adaptation Module: {self.adaptation_module}")
-        print(f"Actor MLP: {self.actor_body}")
-        print(f"Critic MLP: {self.critic_body}")
+        
+        self.network_manager = NetworkManager()
+        self.architecture = self.network_manager.get_architecture(
+            name=AC_Args.network_architecture,
+            input_dim=self.num_obs_history + self.num_privileged_obs,
+            action_dim=num_actions,
+            **kwargs)
+        
+        self._create_networks()
 
         # Action noise
         self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))
         self.distribution = None
         # disable args validation for speedup
         Normal.set_default_validate_args = False
+
+    def _create_networks(self):
+        """Create the networks for the actor and critic"""
+        # actor network
+        self.actor_body = self.architecture.create_actor()
+        # critic network
+        self.critic_body = self.architecture.create_critic()
+        print(f"Actor {self.architecture.get_name()}: {self.actor_body}")
+        print(f"Critic {self.architecture.get_name()}: {self.critic_body}")
 
     @staticmethod
     # not used at the moment
@@ -115,7 +121,7 @@ class ActorCritic(nn.Module):
         mean = self.actor_body(torch.cat((observation_history, latent), dim=-1))
         self.distribution = Normal(mean, mean * 0. + self.std)
 
-    def act(self, observation_history, **kwargs):
+    def act(self, observation_history, **kwargs): # NOTE: this is the actor network
         self.update_distribution(observation_history)
         return self.distribution.sample()
 
@@ -139,7 +145,7 @@ class ActorCritic(nn.Module):
         policy_info["latents"] = privileged_info
         return actions_mean
 
-    def evaluate(self, observation_history, privileged_observations, **kwargs):
+    def evaluate(self, observation_history, privileged_observations, **kwargs): # NOTE: this is the critic network
         value = self.critic_body(torch.cat((observation_history, privileged_observations), dim=-1))
         return value
 

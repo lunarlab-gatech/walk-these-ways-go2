@@ -1,4 +1,4 @@
-def train_go2(headless=True):
+def train_go2(headless=True, network_architecture="mlp"):
 
     import isaacgym
     assert isaacgym
@@ -152,8 +152,8 @@ def train_go2(headless=True):
 
 
     Cfg.commands.lin_vel_x = [-1.0, 1.0]
-    # Cfg.commands.lin_vel_y = [-0.6, 0.6]
-    Cfg.commands.lin_vel_y = [-0.6, -0.1]
+    Cfg.commands.lin_vel_y = [-0.6, 0.6]
+    # Cfg.commands.lin_vel_y = [-0.6, -0.1]
     Cfg.commands.ang_vel_yaw = [-1.0, 1.0]
     Cfg.commands.body_height_cmd = [-0.25, 0.15]
     Cfg.commands.gait_frequency_cmd_range = [2.0, 4.0]
@@ -168,8 +168,8 @@ def train_go2(headless=True):
     Cfg.commands.stance_length_range = [0.35, 0.45]
 
     Cfg.commands.limit_vel_x = [-5.0, 5.0]
-    # Cfg.commands.limit_vel_y = [-0.6, 0.6]
-    Cfg.commands.limit_vel_y = [-0.6, -0.1]
+    Cfg.commands.limit_vel_y = [-0.6, 0.6]
+    # Cfg.commands.limit_vel_y = [-0.6, -0.1]
     Cfg.commands.limit_vel_yaw = [-5.0, 5.0]
     Cfg.commands.limit_body_height = [-0.25, 0.15]
     Cfg.commands.limit_gait_frequency = [2.0, 4.0]
@@ -208,6 +208,8 @@ def train_go2(headless=True):
     Cfg.commands.gaitwise_curricula = True
 
     env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    
+    AC_Args.network_architecture = network_architecture
 
     # log the experiment parameters
     logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
@@ -255,5 +257,6 @@ if __name__ == '__main__':
                   xKey: iterations
                 """, filename=".charts.yml", dedent=True)
 
+    NETWORK_ARCHITECTURE = "gnn"
     # to see the environment rendering, set headless=False
-    train_go2(headless=True)
+    train_go2(headless=True, network_architecture=NETWORK_ARCHITECTURE)

@@ -61,7 +61,7 @@ class PPO:
 
     def train_mode(self):
         self.actor_critic.train()
-
+    # obs: [b, 70], privileged_obs: [b, 2], obs_history: [b, 2100]
     def act(self, obs, privileged_obs, obs_history):
         # Compute the actions and values
         self.transition.actions = self.actor_critic.act(obs_history).detach()
