@@ -29,3 +29,5 @@ isaacgym/
 # 忽略图片
 scripts/*.png
 scripts/*.gif
+
+wandb/

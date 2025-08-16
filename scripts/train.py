@@ -3,12 +3,15 @@ def train_go2(headless=True, network_architecture="mlp"):
     import isaacgym
     assert isaacgym
     import torch
+    import wandb
+    import os
+    from datetime import datetime
 
     from go2_gym.envs.base.legged_robot_config import Cfg
     from go2_gym.envs.go2.go2_config import config_go2
     from go2_gym.envs.go2.velocity_tracking import VelocityTrackingEasyEnv
 
-    from ml_logger import logger
+    # from ml_logger import logger
 
     from go2_gym_learn.ppo_cse import Runner
     from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
@@ -211,52 +214,76 @@ def train_go2(headless=True, network_architecture="mlp"):
     
     AC_Args.network_architecture = network_architecture
 
-    # log the experiment parameters
-    logger.log_params(AC_Args=vars(AC_Args), PPO_Args=vars(PPO_Args), RunnerArgs=vars(RunnerArgs),
-                      Cfg=vars(Cfg))
+    training_id = wandb.util.generate_id()
+    month_day_h_m_s = datetime.now().strftime("%m-%d-%H-%M-%S")
+    
+    training_root = f"runs/{network_architecture}/{month_day_h_m_s}-{training_id}"
+    os.makedirs(training_root, exist_ok=True)
+    os.makedirs(f"{training_root}/checkpoints", exist_ok=True)
+    os.makedirs(f"{training_root}/curriculum", exist_ok=True)
+    os.makedirs(f"{training_root}/videos", exist_ok=True)
+    
+    import pickle
+    parameters = {
+        "AC_Args": vars(AC_Args),
+        "PPO_Args": vars(PPO_Args), 
+        "RunnerArgs": vars(RunnerArgs),
+        "Cfg": vars(Cfg),
+        "network_architecture": network_architecture,
+        "training_id": training_id,
+        "start_time": datetime.now().isoformat()
+    }
+    with open(f"{training_root}/parameters.pkl", "wb") as f:
+        pickle.dump(parameters, f)
+    
+    # init wandb
+    wandb.init(project="go2-walk-these-ways",
+               name=f"{network_architecture}-{month_day_h_m_s}-{training_id}",
+               config=parameters)
 
     env = HistoryWrapper(env)
     gpu_id = 0
-    runner = Runner(env, device=f"cuda:{gpu_id}")
+    runner = Runner(env, device=f"cuda:{gpu_id}", training_root=training_root)
     runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True, eval_freq=100)
-
+    
+    wandb.finish()
 
 if __name__ == '__main__':
-    from pathlib import Path
-    from ml_logger import logger
-    from go2_gym import MINI_GYM_ROOT_DIR
+    # from pathlib import Path
+    # from ml_logger import logger
+    # from go2_gym import MINI_GYM_ROOT_DIR
 
-    stem = Path(__file__).stem
-    logger.configure(logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
-                     root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
-    logger.log_text("""
-                charts: 
-                - yKey: train/episode/rew_total/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_tracking_lin_vel/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_tracking_contacts_shaped_force/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_action_smoothness_1/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_action_smoothness_2/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_tracking_contacts_shaped_vel/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_orientation_control/mean
-                  xKey: iterations
-                - yKey: train/episode/rew_dof_pos/mean
-                  xKey: iterations
-                - yKey: train/episode/command_area_trot/mean
-                  xKey: iterations
-                - yKey: train/episode/max_terrain_height/mean
-                  xKey: iterations
-                - type: video
-                  glob: "videos/*.mp4"
-                - yKey: adaptation_loss/mean
-                  xKey: iterations
-                """, filename=".charts.yml", dedent=True)
+    # stem = Path(__file__).stem
+    # logger.configure(logger.utcnow(f'gait-conditioned-agility/%Y-%m-%d/{stem}/%H%M%S.%f'),
+    #                  root=Path(f"{MINI_GYM_ROOT_DIR}/runs").resolve(), )
+    # logger.log_text("""
+    #             charts: 
+    #             - yKey: train/episode/rew_total/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_tracking_lin_vel/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_tracking_contacts_shaped_force/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_action_smoothness_1/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_action_smoothness_2/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_tracking_contacts_shaped_vel/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_orientation_control/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/rew_dof_pos/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/command_area_trot/mean
+    #               xKey: iterations
+    #             - yKey: train/episode/max_terrain_height/mean
+    #               xKey: iterations
+    #             - type: video
+    #               glob: "videos/*.mp4"
+    #             - yKey: adaptation_loss/mean
+    #               xKey: iterations
+    #             """, filename=".charts.yml", dedent=True)
 
     NETWORK_ARCHITECTURE = "gnn"
     # to see the environment rendering, set headless=False
-    train_go2(headless=True, network_architecture=NETWORK_ARCHITECTURE)
+    train_go2(headless=False, network_architecture=NETWORK_ARCHITECTURE)

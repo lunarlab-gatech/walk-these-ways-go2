@@ -23,7 +23,7 @@ class NetworkArchitecture(ABC):
 class MLPArchitecture(NetworkArchitecture):
     """Standard MLP architecture"""
     
-    def __init__(self, input_dim: int, action_dim: int, actor_hidden_dims: list, critic_hidden_dims: list, activation=nn.ReLU):
+    def __init__(self, input_dim: int, action_dim: int, actor_hidden_dims: list, critic_hidden_dims: list, activation=nn.ELU()):
         '''
         input_dim: the dimension of the input
         action_dim: the dimension of the action
@@ -40,28 +40,28 @@ class MLPArchitecture(NetworkArchitecture):
     def create_actor(self, **kwargs) -> nn.Module:
         layers = []
         layers.append(nn.Linear(self.input_dim, self.actor_hidden_dims[0]))
-        layers.append(self.activation())
+        layers.append(self.activation)
         
         for l in range(len(self.actor_hidden_dims)):
             if l == len(self.actor_hidden_dims) - 1:
                 layers.append(nn.Linear(self.actor_hidden_dims[l], self.action_dim))
             else:
                 layers.append(nn.Linear(self.actor_hidden_dims[l], self.actor_hidden_dims[l + 1]))
-                layers.append(self.activation())
+                layers.append(self.activation)
         
         return nn.Sequential(*layers)
     
     def create_critic(self, **kwargs) -> nn.Module:
         layers = []
         layers.append(nn.Linear(self.input_dim, self.critic_hidden_dims[0]))
-        layers.append(self.activation())
+        layers.append(self.activation)
         
         for l in range(len(self.critic_hidden_dims)):
             if l == len(self.critic_hidden_dims) - 1:
                 layers.append(nn.Linear(self.critic_hidden_dims[l], 1))
             else:
                 layers.append(nn.Linear(self.critic_hidden_dims[l], self.critic_hidden_dims[l + 1]))
-                layers.append(self.activation())
+                layers.append(self.activation)
         
         return nn.Sequential(*layers)
         
@@ -71,7 +71,7 @@ class MLPArchitecture(NetworkArchitecture):
 class GNNArchitecture(NetworkArchitecture):
     """GNN architecture"""
     
-    def __init__(self, hidden_dim: int, num_layers: int, activation=nn.ELU):
+    def __init__(self, hidden_dim: int, num_layers: int, activation=nn.ELU()):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.activation = activation

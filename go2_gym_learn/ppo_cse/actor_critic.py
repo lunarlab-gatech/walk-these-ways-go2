@@ -17,6 +17,7 @@ class AC_Args(PrefixProto, cli=False):
     class mlp(PrefixProto, cli=False):
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [512, 256, 128]
+        activation = 'elu'
     
     # GNN specific configuration
     class gnn(PrefixProto, cli=False):

@@ -157,7 +157,7 @@ class myGNN(torch.nn.Module):
         Convert observations into features for each node in a batch of graphs.
         """
         batch_size = obs_all.shape[0]
-        common_obs = deepcopy(obs_all[:, :self.len_common_obs])
+        common_obs = obs_all[:, :self.len_common_obs].clone()
         common_obs = common_obs.reshape(batch_size, self.num_timesteps, -1)
         
         base_feature_list = []
@@ -176,7 +176,7 @@ class myGNN(torch.nn.Module):
         rear_joint_feature = torch.cat(rear_joint_feature_list, dim=1) # [b, 6, T * dim]
         
         # if self.is_critic:
-        privileged_obs = deepcopy(obs_all[:, self.len_common_obs:])
+        privileged_obs = obs_all[:, self.len_common_obs:].clone()
         privileged_base_feature_list = []
         for node_idx in self.node_type_dict['base']['node_indices']:
             privileged_base_feature_list.append(privileged_obs[:, self.node_dict[node_idx]['privileged']].unsqueeze(1)) # [b, 1, dim]
@@ -215,6 +215,13 @@ class myGNN(torch.nn.Module):
     
     def forward(self, obs):
         batch_size = obs.shape[0]
+        
+        if batch_size == 0:
+            # return empty tensor with the same shape as expected output
+            if self.is_critic:
+                return torch.empty(0, 1, device=self.device)
+            else:
+                return torch.empty(0, 12, device=self.device)
 
         base_feature, front_joint_feature, rear_joint_feature, edge_index = self._obs_to_graph_features(obs)
         
