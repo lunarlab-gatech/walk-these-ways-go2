@@ -349,11 +349,11 @@ class Runner:
                 
                 # Save video using imageio (same method as ml_logger)
                 try:
-                    imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt, format='mp4')
+                    imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt)
                 except imageio.core.NeedDownloadError:
                     # Download ffmpeg if needed (same as ml_logger)
                     imageio.plugins.ffmpeg.download()
-                    imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt, format='mp4')
+                    imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt)
                 
                 # Check if video file was created successfully
                 if os.path.exists(video_path) and os.path.getsize(video_path) > 0:

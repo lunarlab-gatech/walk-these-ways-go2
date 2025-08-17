@@ -1591,8 +1591,8 @@ class LeggedRobot(BaseTask):
         # if recording video, set up camera
         if self.cfg.env.record_video:
             self.camera_props = gymapi.CameraProperties()
-            self.camera_props.width = 360
-            self.camera_props.height = 240
+            self.camera_props.width = 368 # should be 16's multiple
+            self.camera_props.height = 240 # should be 16's multiple
             self.rendering_camera = self.gym.create_camera_sensor(self.envs[0], self.camera_props)
             self.gym.set_camera_location(self.rendering_camera, self.envs[0], gymapi.Vec3(1.5, 1, 3.0),
                                          gymapi.Vec3(0, 0, 0))
