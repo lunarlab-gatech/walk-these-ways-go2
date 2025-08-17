@@ -26,6 +26,7 @@ class myGNN(torch.nn.Module):
         self.num_base_nodes = 1
         self.num_front_joint_nodes = 6
         self.num_rear_joint_nodes = 6
+        self.num_joint_nodes = self.num_front_joint_nodes+self.num_rear_joint_nodes
         self.num_nodes = self.num_base_nodes + self.num_front_joint_nodes + self.num_rear_joint_nodes
         
         # Create a single edge_index for all connections
@@ -109,14 +110,49 @@ class myGNN(torch.nn.Module):
         # Output layer
         self.out_channels_per_node = 1
         
+        # if self.is_critic:
+        #     self.decoder = nn.Sequential(
+        #         Linear(hidden_channels * self.num_nodes, hidden_channels),
+        #         self.activation,
+        #         Linear(hidden_channels, 1)
+        #     )
+        # else:
+        #     self.decoder = Linear(hidden_channels, self.out_channels_per_node)
+        
         if self.is_critic:
+            # Critic: gate network + MLP
+            self.gate_network = nn.Sequential(
+                nn.Linear(hidden_channels * self.num_nodes, hidden_channels),
+                nn.Sigmoid()
+            )
+            
             self.decoder = nn.Sequential(
-                Linear(hidden_channels * self.num_nodes, hidden_channels),
-                self.activation,
-                Linear(hidden_channels, 1)
+                nn.Linear(hidden_channels * self.num_nodes, hidden_channels * 2),
+                nn.LayerNorm(hidden_channels * 2),
+                nn.ELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_channels * 2, hidden_channels),
+                nn.LayerNorm(hidden_channels),
+                nn.ELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_channels, 1)
             )
         else:
-            self.decoder = Linear(hidden_channels, self.out_channels_per_node)
+            # Actor: gate network + MLP
+            self.joint_gate = nn.Sequential(
+                nn.Linear(hidden_channels, hidden_channels),
+                nn.Sigmoid()
+            )
+            
+            self.joint_decoder = nn.Sequential(
+                nn.Linear(hidden_channels, hidden_channels),
+                nn.LayerNorm(hidden_channels),
+                nn.ELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_channels, hidden_channels // 2),
+                nn.ELU(),
+                nn.Linear(hidden_channels // 2, 1)
+            )
 
         # Create batched edge indices for common batch sizes
         self.edge_index_batch_default = self._create_edge_index_batch(self.batch_size_default).to(self.device)
@@ -248,18 +284,48 @@ class myGNN(torch.nn.Module):
             x_new = self.activation(x_new)
             x = x_new
         
+        # if self.is_critic:
+        #     # For critic, use all node embeddings
+        #     x_reshaped = x.reshape(batch_size, -1)  # [batch_size, num_nodes * hidden_channels]
+        #     final_output = self.decoder(x_reshaped)  # [batch_size, 1]
+        # else:
+        #     # For actor, use only joint node embeddings to produce actions
+        #     # Extract only joint nodes (indices 2-13)
+        #     joint_indices = torch.arange(self.num_base_nodes, self.num_nodes).to(self.device)
+        #     joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).to(self.device).repeat_interleave(self.num_nodes - self.num_base_nodes)
+        #     joint_x = x[joint_indices]  # [batch_size * 12, hidden_channels]
+            
+        #     final_output = self.decoder(joint_x).reshape(batch_size, 12)  # [batch_size, 12]
+        
         if self.is_critic:
-            # For critic, use all node embeddings
+            # For critic, use all node embeddings with gating
             x_reshaped = x.reshape(batch_size, -1)  # [batch_size, num_nodes * hidden_channels]
-            final_output = self.decoder(x_reshaped)  # [batch_size, 1]
+            
+            # Apply gating mechanism
+            gate_weights = self.gate_network(x_reshaped)  # [batch_size, hidden_channels]
+            gated_features = x_reshaped * gate_weights.repeat(1, self.num_nodes)
+            
+            final_output = self.decoder(gated_features)  # [batch_size, 1]
         else:
-            # For actor, use only joint node embeddings to produce actions
-            # Extract only joint nodes (indices 2-13)
+            # For actor, use only joint node embeddings with gating
             joint_indices = torch.arange(self.num_base_nodes, self.num_nodes).to(self.device)
             joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).to(self.device).repeat_interleave(self.num_nodes - self.num_base_nodes)
             joint_x = x[joint_indices]  # [batch_size * 12, hidden_channels]
             
-            final_output = self.decoder(joint_x).reshape(batch_size, 12)  # [batch_size, 12]
+            # Reshape for processing: [batch_size, 12, hidden_channels]
+            joint_x_reshaped = joint_x.reshape(batch_size, self.num_joint_nodes, -1)
+            
+            # Apply gating to each joint
+            joint_gates = self.joint_gate(joint_x_reshaped)  # [batch_size, 12, hidden_channels]
+            gated_joints = joint_x_reshaped * joint_gates
+            
+            # Each joint gets its own output
+            joint_outputs = []
+            for i in range(self.num_joint_nodes):
+                joint_output = self.joint_decoder(gated_joints[:, i, :])  # [batch_size, 1]
+                joint_outputs.append(joint_output)
+            
+            final_output = torch.cat(joint_outputs, dim=1)  # [batch_size, 12]
 
         return final_output
     
