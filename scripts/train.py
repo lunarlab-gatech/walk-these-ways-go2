@@ -16,8 +16,8 @@ def train_go2(headless=True, network_architecture="mlp"):
     from go2_gym_learn.ppo_cse import Runner
     from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper
     from go2_gym_learn.ppo_cse.actor_critic import AC_Args
-    from go2_gym_learn.ppo_cse.ppo import PPO_Args
-    from go2_gym_learn.ppo_cse import RunnerArgs
+    from go2_gym_learn.ppo_cse.config import PPO_Args
+    from go2_gym_learn.ppo_cse.config import RunnerArgs
 
     config_go2(Cfg)
 

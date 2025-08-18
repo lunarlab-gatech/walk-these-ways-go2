@@ -71,9 +71,11 @@ class MLPArchitecture(NetworkArchitecture):
 class GNNArchitecture(NetworkArchitecture):
     """GNN architecture"""
     
-    def __init__(self, hidden_dim: int, num_layers: int, activation=nn.ELU()):
+    def __init__(self, hidden_dim: int, num_layers: int, num_envs: int, num_env_mini_batch: int, activation=nn.ELU()):
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        self.num_envs = num_envs
+        self.num_env_mini_batch = num_env_mini_batch
         self.activation = activation
     
     def create_actor(self, **kwargs) -> nn.Module:
@@ -82,6 +84,8 @@ class GNNArchitecture(NetworkArchitecture):
             hidden_channels=self.hidden_dim,
             num_layers=self.num_layers,
             activation_fn=self.activation,
+            num_envs=self.num_envs,
+            num_env_mini_batch=self.num_env_mini_batch,
             is_critic=False
         )
     
@@ -91,6 +95,8 @@ class GNNArchitecture(NetworkArchitecture):
             hidden_channels=self.hidden_dim,
             num_layers=self.num_layers,
             activation_fn=self.activation,
+            num_envs=self.num_envs,
+            num_env_mini_batch=self.num_env_mini_batch,
             is_critic=True
         )
     
@@ -155,7 +161,7 @@ class NetworkManager:
             return self._extract_mlp_params(required_params, **kwargs)
         
         elif architecture_name == "gnn":
-            required_params = ['hidden_dim', 'num_layers']
+            required_params = ['hidden_dim', 'num_layers', 'num_envs', 'num_env_mini_batch']
             return self._extract_gnn_params(required_params, **kwargs)
         
         elif architecture_name == "emlp":
@@ -184,7 +190,9 @@ class NetworkManager:
         return {
             'hidden_dim': AC_Args.gnn.hidden_dim,
             'num_layers': AC_Args.gnn.num_layers,
-            'activation': self._get_activation(AC_Args.gnn.activation)
+            'activation': self._get_activation(AC_Args.gnn.activation),
+            'num_envs': AC_Args.gnn.num_envs,
+            'num_env_mini_batch': AC_Args.gnn.num_env_mini_batch
         }
     
     def _extract_emlp_params(self, required_params: list, **kwargs) -> dict:

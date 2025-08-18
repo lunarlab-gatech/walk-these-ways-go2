@@ -4,6 +4,9 @@ from params_proto import PrefixProto
 from torch.distributions import Normal
 from .network_manager import NetworkManager
 
+from .config import RunnerArgs
+from .config import PPO_Args
+
 class AC_Args(PrefixProto, cli=False):
     init_noise_std = 1.0
     activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
@@ -24,6 +27,8 @@ class AC_Args(PrefixProto, cli=False):
         hidden_dim = 128
         num_layers = 8
         activation = 'elu'
+        num_envs = 4096 # NOTE: this should be set to the number of environments in the environment
+        num_env_mini_batch = num_envs * RunnerArgs.num_steps_per_env // PPO_Args.num_mini_batches
     
     # EMLP specific configuration
     class emlp(PrefixProto, cli=False):

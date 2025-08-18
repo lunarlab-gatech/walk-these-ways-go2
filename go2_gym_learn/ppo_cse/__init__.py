@@ -8,6 +8,7 @@ from params_proto import PrefixProto
 
 from .actor_critic import ActorCritic
 from .rollout_storage import RolloutStorage
+from .config import RunnerArgs
 
 
 def class_to_dict(obj) -> dict:
@@ -37,26 +38,6 @@ class DataCaches:
 
 
 caches = DataCaches(1)
-
-
-class RunnerArgs(PrefixProto, cli=False):
-    # runner
-    algorithm_class_name = 'RMA'
-    num_steps_per_env = 24  # per iteration
-    max_iterations = 1500  # number of policy updates
-
-    # logging
-    save_interval = 400  # check for potential saves every this many iterations
-    save_video_interval = 100
-    log_freq = 10
-
-    # load and resume
-    resume = False
-    load_run = -1  # -1 = last run
-    checkpoint = -1  # -1 = last saved model
-    resume_path = None  # updated from load_run and chkpt
-    resume_curriculum = True
-
 
 class Runner:
 
@@ -267,9 +248,6 @@ class Runner:
                 }, step=it)
 
             if it % RunnerArgs.save_interval == 0:
-                # Create necessary directories
-                # os.makedirs("checkpoints", exist_ok=True)
-                # os.makedirs("videos", exist_ok=True)
                 
                 # Save checkpoint
                 checkpoint_path = f"{self.training_root}/checkpoints/ac_weights_{it:06d}.pt"
@@ -295,10 +273,6 @@ class Runner:
                 wandb.save(body_path)
                 
             self.current_learning_iteration += num_learning_iterations
-
-        # Final save
-        # os.makedirs(f"{self.training_root}/checkpoints", exist_ok=True)
-        # os.makedirs(f"{self.training_root}/videos", exist_ok=True)
 
         final_checkpoint_path = f"{self.training_root}/checkpoints/ac_weights_{it:06d}.pt"
         torch.save(self.alg.actor_critic.state_dict(), final_checkpoint_path)
@@ -332,9 +306,6 @@ class Runner:
             self.env.pause_recording()
             print("LOGGING VIDEO")
             
-            # Create video directory first
-            # os.makedirs(f"{self.training_root}/videos", exist_ok=True)
-            
             try:
                 # Use imageio for better compatibility (same as ml_logger)
                 import tempfile
@@ -358,7 +329,7 @@ class Runner:
                 # Check if video file was created successfully
                 if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
                     # Upload to wandb
-                    wandb.log({"video": wandb.Video(video_path, fps=1/self.env.dt, format="mp4")}, step=it)
+                    wandb.log({"video": wandb.Video(video_path, format="mp4")}, step=it)
                     print(f"Video saved successfully: {video_path}")
                 else:
                     print(f"Warning: Video file was not created or is empty: {video_path}")
@@ -372,9 +343,6 @@ class Runner:
                 self.env.pause_recording_eval()
                 print("LOGGING EVAL VIDEO")
                 
-                # Create video directory (already created above, but ensure it exists)
-                # os.makedirs(f"{self.training_root}/videos", exist_ok=True)
-                
                 try:
                     # Log evaluation video with wandb using imageio
                     video_path = f"{self.training_root}/videos/{it:05d}_eval.mp4"
@@ -384,77 +352,22 @@ class Runner:
                     
                     # Save video using imageio (same method as ml_logger)
                     try:
-                        imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt, format='mp4')
+                        imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt)
                     except imageio.core.NeedDownloadError:
                         # Download ffmpeg if needed (same as ml_logger)
                         imageio.plugins.ffmpeg.download()
-                        imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt, format='mp4')
+                        imageio.v3.imwrite(video_path, frame_stack, fps=1/self.env.dt)
                     
                     # Check if video file was created successfully
                     if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
                         # Upload to wandb
-                        wandb.log({"eval_video": wandb.Video(video_path, fps=1/self.env.dt, format="mp4")}, step=it)
+                        wandb.log({"eval_video": wandb.Video(video_path, format="mp4")}, step=it)
                         print(f"Eval video saved successfully: {video_path}")
                     else:
                         print(f"Warning: Eval video file was not created or is empty: {video_path}")
                         
                 except Exception as e:
                     print(f"Error saving eval video: {e}")
-        
-    '''
-    def log_video(self, it):
-        if it - self.last_recording_it >= RunnerArgs.save_video_interval:
-            self.env.start_recording()
-            if self.env.num_eval_envs > 0:
-                self.env.start_recording_eval()
-            print("START RECORDING")
-            self.last_recording_it = it
-
-        frames = self.env.get_complete_frames()
-        if len(frames) > 0:
-            self.env.pause_recording()
-            print("LOGGING VIDEO")
-            
-            # Log video with wandb
-            import cv2
-            import numpy as np
-            
-            # Convert frames to video format
-            video_path = f"{self.training_root}/videos/{it:05d}.mp4"
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(video_path, fourcc, 1/self.env.dt, (frames[0].shape[1], frames[0].shape[0]))
-            
-            for frame in frames:
-                # Assume frame is in RGB format, convert to BGR
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                out.write(frame_bgr)
-            out.release()
-            
-            # Upload to wandb
-            wandb.log({"video": wandb.Video(video_path, fps=1/self.env.dt, format="mp4")}, step=it)
-
-        if self.env.num_eval_envs > 0:
-            frames = self.env.get_complete_frames_eval()
-            if len(frames) > 0:
-                self.env.pause_recording_eval()
-                print("LOGGING EVAL VIDEO")
-                
-                # Create video directory
-                os.makedirs(f"{self.training_root}/videos", exist_ok=True)
-                
-                # Log evaluation video with wandb
-                video_path = f"{self.training_root}/videos/{it:05d}_eval.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(video_path, fourcc, 1/self.env.dt, (frames[0].shape[1], frames[0].shape[0]))
-                
-                for frame in frames:
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    out.write(frame_bgr)
-                out.release()
-                
-                # Upload to wandb
-                wandb.log({"eval_video": wandb.Video(video_path, fps=1/self.env.dt, format="mp4")}, step=it)
-    '''
 
     def get_inference_policy(self, device=None):
         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)
