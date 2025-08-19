@@ -16,6 +16,20 @@ However, the brand-new architecture [unitree-sdk2 ](https://github.com/unitreero
     pip install torch==1.13.1+cu117 torchvision==0.14.1 --extra-index-url https://download.pytorch.org/whl/cu117
     ```
 * Isaac Gym
+    1. Download and install Isaac Gym Preview 4 from https://developer.nvidia.com/isaac-gym
+        ```bash
+        wget -c -O IsaacGym_Preview_4_Package.tar.gz https://developer.download.nvidia.com/isaac/secure/Isaac_Gym/Preview_4/IsaacGym_Preview_4_Package.tar.gz?__token__=exp=1755568943~hmac=c0de085453eeff6a3c53a887a7396d01f81286ecae7b201c3368bde1d1212499&t=eyJscyI6ImdzZW8iLCJsc2QiOiJodHRwczovL3d3dy5nb29nbGUuY29tLyJ9
+        ```
+    2. unzip the file via:
+        ```bash
+        tar -xf IsaacGym_Preview_4_Package.tar.gz
+        ```
+    3. now install the python package
+        ```bash
+        cd isaacgym/python && pip install -e .
+        ```
+    4. modify the 'np.float' to 'float' in `isaacgym/python/isaacgym/torch_utils.py` line 135.
+
 * Nvidia GPU with at least 8GB of VRAM
 
 ---
@@ -26,6 +40,7 @@ Clone this repository and install:
 git clone https://github.com/Teddy-Liao/walk-these-ways-go2.git
 cd walk-these-ways-go2
 pip install -e .
+pip install torch_geometric==2.6.1 wandb
 ```
 
 Start training: 
