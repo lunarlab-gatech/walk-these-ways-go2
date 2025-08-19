@@ -29,6 +29,8 @@ However, the brand-new architecture [unitree-sdk2 ](https://github.com/unitreero
         cd isaacgym/python && pip install -e .
         ```
     4. modify the 'np.float' to 'float' in `isaacgym/python/isaacgym/torch_utils.py` line 135.
+    5. [Optional] 
+        `echo "export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}" >> ~/.bashrc`
 
 * Nvidia GPU with at least 8GB of VRAM
 
