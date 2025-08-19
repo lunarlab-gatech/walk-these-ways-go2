@@ -45,7 +45,7 @@ if __name__ == "__main__":
     from tqdm import trange
     import matplotlib.pyplot as plt
 
-    import ml_logger as logger
+    # import ml_logger as logger
 
     from go2_gym_learn.ppo import Runner
     from go2_gym.envs.wrappers.history_wrapper import HistoryWrapper

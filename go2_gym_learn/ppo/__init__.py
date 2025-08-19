@@ -4,7 +4,7 @@ import time
 from collections import deque
 
 import torch
-from ml_logger import logger
+# from ml_logger import logger
 from params_proto import PrefixProto
 import os
 import copy
@@ -90,11 +90,11 @@ class Runner:
         self.env.reset()
 
     def learn(self, num_learning_iterations, init_at_random_ep_len=False, eval_freq=100, eval_expert=False):
-        from ml_logger import logger
+        # from ml_logger import logger
         # initialize writer
-        assert logger.prefix, "you will overwrite the entire instrument server"
+        # assert logger.prefix, "you will overwrite the entire instrument server"
 
-        logger.start('start', 'epoch', 'episode', 'run', 'step')
+        # logger.start('start', 'epoch', 'episode', 'run', 'step')
 
         if init_at_random_ep_len:
             self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf,
