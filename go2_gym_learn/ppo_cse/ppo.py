@@ -7,11 +7,15 @@ from params_proto import PrefixProto
 from .config import PPO_Args
 
 from go2_gym_learn.ppo_cse import ActorCritic
+from go2_gym_learn.ppo_cse import ActorCriticEMLP
+from go2_gym_learn.ppo_cse import ActorCriticGNN
 from go2_gym_learn.ppo_cse import RolloutStorage
 from go2_gym_learn.ppo_cse import caches
 
+from typing import Union
+
 class PPO:
-    actor_critic: ActorCritic
+    actor_critic: Union[ActorCritic, ActorCriticEMLP, ActorCriticGNN] # TODO: current IO should be double checked
 
     def __init__(self, actor_critic, device='cpu'):
 

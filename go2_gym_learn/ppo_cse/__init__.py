@@ -6,10 +6,13 @@ import wandb
 import torch
 from params_proto import PrefixProto
 
-from .actor_critic import ActorCritic
 from .rollout_storage import RolloutStorage
 from .config import RunnerArgs
+from .config import AC_Args
 
+from .actor_critic import ActorCritic
+from .actor_critic_emlp import ActorCriticEMLP
+from .actor_critic_gnn import ActorCriticGNN
 
 def class_to_dict(obj) -> dict:
     if not hasattr(obj, "__dict__"):
@@ -47,8 +50,15 @@ class Runner:
         self.device = device
         self.env = env
         self.training_root = training_root
+        
+        if AC_Args.network_architecture == "mlp":
+            ActorCriticClass = ActorCritic
+        elif AC_Args.network_architecture == "emlp":
+            ActorCriticClass = ActorCriticEMLP
+        elif AC_Args.network_architecture == "gnn":
+            ActorCriticClass = ActorCriticGNN
 
-        actor_critic = ActorCritic(self.env.num_obs,
+        actor_critic = ActorCriticClass(self.env.num_obs,
                                       self.env.num_privileged_obs,
                                       self.env.num_obs_history,
                                       self.env.num_actions,

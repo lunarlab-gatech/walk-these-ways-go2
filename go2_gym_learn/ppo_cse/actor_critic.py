@@ -6,36 +6,7 @@ from .network_manager import NetworkManager
 
 from .config import RunnerArgs
 from .config import PPO_Args
-
-class AC_Args(PrefixProto, cli=False):
-    init_noise_std = 1.0
-    activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-    adaptation_module_branch_hidden_dims = [256, 128]
-    use_decoder = False
-    
-    # Network architecture selection
-    network_architecture = "mlp"
-    
-    # MLP specific configuration
-    class mlp(PrefixProto, cli=False):
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu'
-    
-    # GNN specific configuration
-    class gnn(PrefixProto, cli=False):
-        hidden_dim = 128
-        num_layers = 8
-        activation = 'elu'
-        num_envs = 4096 # NOTE: this should be set to the number of environments in the environment
-        num_env_mini_batch = num_envs * RunnerArgs.num_steps_per_env // PPO_Args.num_mini_batches
-    
-    # EMLP specific configuration
-    class emlp(PrefixProto, cli=False):
-        hidden_dims = [512, 256, 128]
-        group_type = "SO3"
-        activation = 'elu'
-
+from .config import AC_Args
 
 class ActorCritic(nn.Module):
     is_recurrent = False
@@ -51,52 +22,94 @@ class ActorCritic(nn.Module):
                 [key for key in kwargs.keys()]))
         self.decoder = AC_Args.use_decoder
         super().__init__()
+        
+        if network_architecture == "mlp":
 
-        self.num_obs_history = num_obs_history
-        self.num_privileged_obs = num_privileged_obs
+            self.num_obs_history = num_obs_history
+            self.num_privileged_obs = num_privileged_obs
 
-        activation = get_activation(AC_Args.activation)
+            activation = get_activation(AC_Args.activation)
 
-        # Adaptation module
-        adaptation_module_layers = []
-        adaptation_module_layers.append(nn.Linear(self.num_obs_history, AC_Args.adaptation_module_branch_hidden_dims[0]))
-        adaptation_module_layers.append(activation)
-        for l in range(len(AC_Args.adaptation_module_branch_hidden_dims)):
-            if l == len(AC_Args.adaptation_module_branch_hidden_dims) - 1:
-                adaptation_module_layers.append(
-                    nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l], self.num_privileged_obs))
+            # Adaptation module
+            adaptation_module_layers = []
+            adaptation_module_layers.append(nn.Linear(self.num_obs_history, AC_Args.adaptation_module_branch_hidden_dims[0]))
+            adaptation_module_layers.append(activation)
+            for l in range(len(AC_Args.adaptation_module_branch_hidden_dims)):
+                if l == len(AC_Args.adaptation_module_branch_hidden_dims) - 1:
+                    adaptation_module_layers.append(
+                        nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l], self.num_privileged_obs))
+                else:
+                    adaptation_module_layers.append(
+                        nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l],
+                                AC_Args.adaptation_module_branch_hidden_dims[l + 1]))
+                    adaptation_module_layers.append(activation)
+            self.adaptation_module = nn.Sequential(*adaptation_module_layers)
+            
+            print(f"Adaptation Module: {self.adaptation_module}")
+            
+            # self.network_manager = NetworkManager()
+            # self.architecture = self.network_manager.get_architecture(
+            #     name=AC_Args.network_architecture,
+            #     input_dim=self.num_obs_history + self.num_privileged_obs,
+            #     action_dim=num_actions,
+            #     **kwargs)
+            
+            self.actor_body = self.create_actor(
+                input_dim=self.num_obs_history + self.num_privileged_obs,
+                action_dim=num_actions,
+                actor_hidden_dims=AC_Args.mlp.actor_hidden_dims,
+                activation=get_activation(AC_Args.mlp.activation)
+            )
+            
+            self.critic_body = self.create_critic(
+                input_dim=self.num_obs_history + self.num_privileged_obs,
+                critic_hidden_dims=AC_Args.mlp.critic_hidden_dims,
+                activation=get_activation(AC_Args.mlp.activation)
+            )
+            
+            print(f"Actor MLP: {self.actor_body}")
+            print(f"Critic MLP: {self.critic_body}")
+
+            # Action noise
+            self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))
+            self.distribution = None
+            # disable args validation for speedup
+            Normal.set_default_validate_args = False
+
+    def create_actor(self, input_dim: int, action_dim: int, actor_hidden_dims: list, activation: nn.Module) -> nn.Module:
+        layers = []
+        layers.append(nn.Linear(input_dim, actor_hidden_dims[0]))
+        layers.append(activation)
+        
+        for l in range(len(actor_hidden_dims)):
+            if l == len(actor_hidden_dims) - 1:
+                layers.append(nn.Linear(actor_hidden_dims[l], action_dim))
             else:
-                adaptation_module_layers.append(
-                    nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l],
-                              AC_Args.adaptation_module_branch_hidden_dims[l + 1]))
-                adaptation_module_layers.append(activation)
-        self.adaptation_module = nn.Sequential(*adaptation_module_layers)
+                layers.append(nn.Linear(actor_hidden_dims[l], actor_hidden_dims[l + 1]))
+                layers.append(activation)
         
-        print(f"Adaptation Module: {self.adaptation_module}")
+        return nn.Sequential(*layers)
+    
+    def create_critic(self, input_dim: int, critic_hidden_dims: list, activation: nn.Module) -> nn.Module:
+        layers = []
+        layers.append(nn.Linear(input_dim, critic_hidden_dims[0]))
+        layers.append(activation)
         
-        self.network_manager = NetworkManager()
-        self.architecture = self.network_manager.get_architecture(
-            name=AC_Args.network_architecture,
-            input_dim=self.num_obs_history + self.num_privileged_obs,
-            action_dim=num_actions,
-            **kwargs)
+        for l in range(len(critic_hidden_dims)):
+            if l == len(critic_hidden_dims) - 1:
+                layers.append(nn.Linear(critic_hidden_dims[l], 1))
+            else:
+                layers.append(nn.Linear(critic_hidden_dims[l], critic_hidden_dims[l + 1]))
+                layers.append(activation)
         
-        self._create_networks()
-
-        # Action noise
-        self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))
-        self.distribution = None
-        # disable args validation for speedup
-        Normal.set_default_validate_args = False
-
-    def _create_networks(self):
-        """Create the networks for the actor and critic"""
-        # actor network
-        self.actor_body = self.architecture.create_actor()
-        # critic network
-        self.critic_body = self.architecture.create_critic()
-        print(f"Actor {self.architecture.get_name()}: {self.actor_body}")
-        print(f"Critic {self.architecture.get_name()}: {self.critic_body}")
+        return nn.Sequential(*layers)
+    
+    # def _create_networks(self):
+    #     """Create the networks for the actor and critic"""
+    #     # actor network
+    #     self.actor_body = self.architecture.create_actor()
+    #     # critic network
+    #     self.critic_body = self.architecture.create_critic()
 
     @staticmethod
     # not used at the moment

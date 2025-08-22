@@ -36,3 +36,32 @@ class PPO_Args(PrefixProto):
     max_grad_norm = 1.
 
     selective_adaptation_module_loss = False
+    
+class AC_Args(PrefixProto, cli=False):
+    init_noise_std = 1.0
+    activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+    adaptation_module_branch_hidden_dims = [256, 128]
+    use_decoder = False
+    
+    # Network architecture selection
+    network_architecture = "mlp"
+    
+    # MLP specific configuration
+    class mlp(PrefixProto, cli=False):
+        actor_hidden_dims = [512, 256, 128]
+        critic_hidden_dims = [512, 256, 128]
+        activation = 'elu'
+        
+    # GNN specific configuration
+    class gnn(PrefixProto, cli=False):
+        hidden_dim = 128
+        num_layers = 8
+        activation = 'elu'
+        num_envs = 4096 # NOTE: this should be set to the number of environments in the environment
+        num_env_mini_batch = num_envs * RunnerArgs.num_steps_per_env // PPO_Args.num_mini_batches
+        
+    # EMLP specific configuration
+    class emlp(PrefixProto, cli=False):
+        actor_hidden_dims = [512, 256, 128]
+        critic_hidden_dims = [512, 256, 128]
+        activation = 'elu'

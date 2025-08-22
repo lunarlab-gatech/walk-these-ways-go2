@@ -12,8 +12,6 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-
-
 class SimpleEMLP(EquivariantModule):
     def __init__(self,
                  in_type: FieldType,
@@ -75,20 +73,18 @@ class SimpleEMLP(EquivariantModule):
             sequential.add_module(name, module.export())
         return sequential
 
+# from params_proto import PrefixProto
+# class ACS_Args(PrefixProto, cli=False):
+#     # policy
+#     init_noise_std = 1.0
+#     actor_hidden_dims = [512, 256, 128]
+#     critic_hidden_dims = [512, 256, 128]
+#     activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
 
+#     adaptation_module_branch_hidden_dims = [256, 128]
 
-
-from params_proto import PrefixProto
-class ACS_Args(PrefixProto, cli=False):
-    # policy
-    init_noise_std = 1.0
-    actor_hidden_dims = [512, 256, 128]
-    critic_hidden_dims = [512, 256, 128]
-    activation = 'elu'  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-
-    adaptation_module_branch_hidden_dims = [256, 128]
-
-    use_decoder = False
+#     use_decoder = False
+from .config import AC_Args
 
 
 G = None
@@ -106,13 +102,13 @@ class ActorCriticEMLP(nn.Module):
         if kwargs:
             print("ActorCriticEMLP.__init__ got unexpected arguments, which will be ignored: " + str(
                 [key for key in kwargs.keys()]))
-        self.decoder = ACS_Args.use_decoder
+        self.decoder = AC_Args.use_decoder
         super().__init__()
 
         self.num_obs_history = num_obs_history
         self.num_privileged_obs = num_privileged_obs
 
-        activation = ACS_Args.activation
+        activation = AC_Args.activation
 
 
         global G
@@ -173,16 +169,16 @@ class ActorCriticEMLP(nn.Module):
         # Adaptation module if not using EMLP
         activation_func = get_activation(activation)
         adaptation_module_layers = []
-        adaptation_module_layers.append(nn.Linear(self.num_obs_history, ACS_Args.adaptation_module_branch_hidden_dims[0]))
+        adaptation_module_layers.append(nn.Linear(self.num_obs_history, AC_Args.adaptation_module_branch_hidden_dims[0]))
         adaptation_module_layers.append(activation_func)
-        for l in range(len(ACS_Args.adaptation_module_branch_hidden_dims)):
-            if l == len(ACS_Args.adaptation_module_branch_hidden_dims) - 1:
+        for l in range(len(AC_Args.adaptation_module_branch_hidden_dims)):
+            if l == len(AC_Args.adaptation_module_branch_hidden_dims) - 1:
                 adaptation_module_layers.append(
-                    nn.Linear(ACS_Args.adaptation_module_branch_hidden_dims[l], self.num_privileged_obs))
+                    nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l], self.num_privileged_obs))
             else:
                 adaptation_module_layers.append(
-                    nn.Linear(ACS_Args.adaptation_module_branch_hidden_dims[l],
-                              ACS_Args.adaptation_module_branch_hidden_dims[l + 1]))
+                    nn.Linear(AC_Args.adaptation_module_branch_hidden_dims[l],
+                              AC_Args.adaptation_module_branch_hidden_dims[l + 1]))
                 adaptation_module_layers.append(activation_func)
         self.adaptation_module = nn.Sequential(*adaptation_module_layers)
 
@@ -191,14 +187,14 @@ class ActorCriticEMLP(nn.Module):
         self.actor_body = SimpleEMLP(
             in_field_type, 
             out_field_type,
-            hidden_dims = ACS_Args.actor_hidden_dims, 
+            hidden_dims = AC_Args.emlp.actor_hidden_dims, 
             activation = activation
         )
 
         self.critic_body = SimpleEMLP(
             in_field_type, 
             critic_out_field_type,
-            hidden_dims = ACS_Args.critic_hidden_dims,
+            hidden_dims = AC_Args.emlp.critic_hidden_dims,
             activation=activation
         )
 
@@ -207,7 +203,7 @@ class ActorCriticEMLP(nn.Module):
         print(f"Critic EMLP: {self.critic_body}")
 
         # Action noise
-        self.std = nn.Parameter(ACS_Args.init_noise_std * torch.ones(num_actions))
+        self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))
         self.distribution = None
         # disable args validation for speedup
         Normal.set_default_validate_args = False

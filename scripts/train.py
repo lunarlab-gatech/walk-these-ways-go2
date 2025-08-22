@@ -1,3 +1,5 @@
+import argparse
+
 def train_go2(headless=True, network_architecture="mlp"):
 
     import isaacgym
@@ -152,8 +154,6 @@ def train_go2(headless=True, network_architecture="mlp"):
     Cfg.rewards.only_positive_rewards_ji22_style = True
     Cfg.rewards.sigma_rew_neg = 0.02
 
-
-
     Cfg.commands.lin_vel_x = [-1.0, 1.0]
     Cfg.commands.lin_vel_y = [-0.6, 0.6]
     # Cfg.commands.lin_vel_y = [-0.6, -0.1]
@@ -210,7 +210,7 @@ def train_go2(headless=True, network_architecture="mlp"):
     Cfg.commands.binary_phases = True
     Cfg.commands.gaitwise_curricula = True
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=False, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)
     
     AC_Args.network_architecture = network_architecture
 
@@ -284,6 +284,25 @@ if __name__ == '__main__':
     #               xKey: iterations
     #             """, filename=".charts.yml", dedent=True)
 
-    NETWORK_ARCHITECTURE = "gnn"
-    # to see the environment rendering, set headless=False
-    train_go2(headless=False, network_architecture=NETWORK_ARCHITECTURE)
+    parser = argparse.ArgumentParser(description='Train GO2 robot with different network architectures')
+    parser.add_argument('--network-architecture', 
+                       type=str, 
+                       default='mlp',
+                       choices=['mlp', 'emlp', 'gnn'],
+                       help='Network architecture to use (default: mlp)')
+    parser.add_argument('--headless', 
+                       action='store_true',
+                       help='Run in headless mode (no rendering)')
+    parser.add_argument('--no-headless', 
+                       dest='headless',
+                       action='store_false',
+                       help='Run with rendering (default)')
+    
+    parser.set_defaults(headless=False)
+    
+    args = parser.parse_args()
+    
+    print(f"Training with network architecture: {args.network_architecture}")
+    print(f"Headless mode: {args.headless}")
+    
+    train_go2(headless=args.headless, network_architecture=args.network_architecture)
