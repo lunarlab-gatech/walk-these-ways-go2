@@ -81,7 +81,7 @@ def load_env(label, headless=False):
     env = HistoryWrapper(env)
 
     # load policy
-    from ml_logger import logger
+    # from ml_logger import logger
     from go2_gym_learn.ppo_cse.actor_critic import ActorCritic
 
     policy = load_policy(logdir)
@@ -90,7 +90,7 @@ def load_env(label, headless=False):
 
 
 def play_go2(headless=True):
-    from ml_logger import logger
+    # from ml_logger import logger
 
     from pathlib import Path
     from go2_gym import MINI_GYM_ROOT_DIR
