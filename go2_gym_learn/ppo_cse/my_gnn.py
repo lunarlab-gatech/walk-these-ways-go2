@@ -19,7 +19,8 @@ class myGNN(torch.nn.Module):
         """
         super().__init__()
         self.activation = activation_fn
-        self.batch_size_default = num_envs
+        self.batch_size = num_envs
+        self.mini_batch_size = num_env_mini_batch
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
          # Total number of nodes (combining base and joint)
@@ -119,12 +120,12 @@ class myGNN(torch.nn.Module):
             self.decoder = Linear(hidden_channels, self.out_channels_per_node)
 
         # Create batched edge indices for common batch sizes
-        self.edge_index_batch_default = self._create_edge_index_batch(self.batch_size_default).to(self.device)
-        self.edge_index_batch_5 = self._create_edge_index_batch(5).to(self.device)
-        self.edge_index_batch_1024 = self._create_edge_index_batch(1024).to(self.device)
-        self.edge_index_batch_4096 = self._create_edge_index_batch(4096).to(self.device)
-        self.edge_index_batch_6144 = self._create_edge_index_batch(6144).to(self.device)
-        self.edge_index_batch_24576 = self._create_edge_index_batch(24576).to(self.device)
+        self.edge_index_batch = self._create_edge_index_batch(self.batch_size).to(self.device)
+        self.edge_index_batch_mini = self._create_edge_index_batch(self.mini_batch_size).to(self.device)
+        
+        # Create batched joint indices for common batch sizes
+        self.joint_indices_batch = self._create_joint_indices_batch(self.batch_size).to(self.device)
+        self.joint_indices_batch_mini = self._create_joint_indices_batch(self.mini_batch_size).to(self.device)
 
     def _create_edge_index_batch(self, batch_size):
         '''
@@ -138,7 +139,7 @@ class myGNN(torch.nn.Module):
             edge_indices.append(self.edge_index + edge_offset)
         
         # Concatenate all edge indices
-        edge_index_batch = torch.cat(edge_indices, dim=1).to(self.device)
+        edge_index_batch = torch.cat(edge_indices, dim=1)
         return edge_index_batch
 
     def _create_edges_index(self):
@@ -152,6 +153,16 @@ class myGNN(torch.nn.Module):
         
         return edge_index
     
+    def _create_joint_indices_batch(self, batch_size):
+        '''
+        Create joint indices for batch size
+        Extract only joint nodes (indices 2-13)
+        '''
+        joint_indices = torch.arange(self.num_base_nodes, self.num_nodes)
+        joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).repeat_interleave(self.num_nodes - self.num_base_nodes)
+
+        return joint_indices
+
     def _obs_to_graph_features(self, obs_all):
         """
         Convert observations into features for each node in a batch of graphs.
@@ -196,16 +207,10 @@ class myGNN(torch.nn.Module):
         rear_joint_feature = torch.cat((rear_joint_feature, privileged_rear_joint_feature), dim=-1)
             
         # TODO: this hard code is not good, need to be improved
-        if batch_size == 5:
-            edge_index = self.edge_index_batch_5
-        elif batch_size == 1024:
-            edge_index = self.edge_index_batch_1024
-        elif batch_size == 4096:
-            edge_index = self.edge_index_batch_4096
-        elif batch_size == 6144:
-            edge_index = self.edge_index_batch_6144
-        elif batch_size == 24576:
-            edge_index = self.edge_index_batch_24576
+        if batch_size == self.batch_size:
+            edge_index = self.edge_index_batch
+        elif batch_size == self.mini_batch_size:
+            edge_index = self.edge_index_batch_mini
         else:
             print(f"-------Unknown batch size: {batch_size}-------")
             edge_index = self._create_edge_index_batch(batch_size).to(self.device)
@@ -253,11 +258,13 @@ class myGNN(torch.nn.Module):
             x_reshaped = x.reshape(batch_size, -1)  # [batch_size, num_nodes * hidden_channels]
             final_output = self.decoder(x_reshaped)  # [batch_size, 1]
         else:
-            # For actor, use only joint node embeddings to produce actions
-            # Extract only joint nodes (indices 2-13)
-            joint_indices = torch.arange(self.num_base_nodes, self.num_nodes).to(self.device)
-            joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).to(self.device).repeat_interleave(self.num_nodes - self.num_base_nodes)
-            joint_x = x[joint_indices]  # [batch_size * 12, hidden_channels]
+            if batch_size == self.batch_size:
+                joint_x = x[self.joint_indices_batch]  # [batch_size * 12, hidden_channels]
+            elif batch_size == self.mini_batch_size:
+                joint_x = x[self.joint_indices_batch_mini]  # [batch_size * 12, hidden_channels]
+            else:
+                print(f"-------Unknown batch size: {batch_size}-------")
+                joint_x = x[self._create_joint_indices_batch(batch_size).to(self.device)]  # [batch_size * 12, hidden_channels]
             
             final_output = self.decoder(joint_x).reshape(batch_size, 12)  # [batch_size, 12]
 

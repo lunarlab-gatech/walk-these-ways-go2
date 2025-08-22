@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import Linear, GraphConv
+from torch_geometric.nn import Linear, GraphConv, Sequential, GCNConv
 # from copy import deepcopy
 
 class myGNN(torch.nn.Module):
