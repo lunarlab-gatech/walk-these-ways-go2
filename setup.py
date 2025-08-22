@@ -19,6 +19,8 @@ setup(
                       'matplotlib',
                       'numpy==1.23.5',
                       'torch_geometric==2.6.1',
+                      'imageio==2.35.1',
+                      'scikit-image==0.20.0',
                       'wandb'
                       ]
 )
