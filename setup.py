@@ -17,7 +17,7 @@ setup(
                       'gym>=0.14.0',
                       'tqdm',
                       'matplotlib',
-                      'numpy==1.23.5',
+                      'numpy==1.24.4',
                       'torch_geometric==2.6.1',
                       'imageio==2.35.1',
                       'scikit-image==0.20.0',
