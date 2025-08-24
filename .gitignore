@@ -27,7 +27,6 @@ go2_gym_deploy/unitree_sdk2_bin/library/unitree_sdk2/build/
 isaacgym/
 
 # 忽略图片
-scripts/*.png
-scripts/*.gif
+viz
 
 wandb/
