@@ -1,6 +1,6 @@
 import argparse
 
-def train_go2(headless=True, network_architecture="mlp"):
+def train_go2(headless=True, network_architecture="mlp", num_learning_iterations=30000):
 
     import isaacgym
     assert isaacgym
@@ -244,7 +244,7 @@ def train_go2(headless=True, network_architecture="mlp"):
     env = HistoryWrapper(env)
     gpu_id = 0
     runner = Runner(env, device=f"cuda:{gpu_id}", training_root=training_root)
-    runner.learn(num_learning_iterations=100000, init_at_random_ep_len=True, eval_freq=100)
+    runner.learn(num_learning_iterations=num_learning_iterations, init_at_random_ep_len=True, eval_freq=100)
     
     wandb.finish()
 
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     #             """, filename=".charts.yml", dedent=True)
 
     parser = argparse.ArgumentParser(description='Train GO2 robot with different network architectures')
-    parser.add_argument('--network-architecture', 
+    parser.add_argument('-n', '--network-architecture', 
                        type=str, 
                        default='mlp',
                        choices=['mlp', 'emlp', 'gnn'],
@@ -297,6 +297,10 @@ if __name__ == '__main__':
                        dest='headless',
                        action='store_false',
                        help='Run with rendering (default)')
+    parser.add_argument('-i', '--num-learning-iterations', 
+                       type=int, 
+                       default=30000, # original value: 100,000
+                       help='Number of learning iterations (default: 30000)')
     
     parser.set_defaults(headless=False)
     
@@ -304,5 +308,6 @@ if __name__ == '__main__':
     
     print(f"Training with network architecture: {args.network_architecture}")
     print(f"Headless mode: {args.headless}")
+    print(f"Number of learning iterations: {args.num_learning_iterations}")
     
-    train_go2(headless=args.headless, network_architecture=args.network_architecture)
+    train_go2(headless=args.headless, network_architecture=args.network_architecture, num_learning_iterations=args.num_learning_iterations)

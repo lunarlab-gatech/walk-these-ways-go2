@@ -317,13 +317,25 @@ class LeggedRobot(BaseTask):
         #                               ), dim=-1)
 
         if self.cfg.env.observe_command:
+            # NOTE: the command is in the order of [x, y, yaw, ...], but the observation is in the order of [y, x, yaw, ...]
+            # This order is for the consistency with EMLP's representation definition.
+            commands_obs = self.commands.clone()
+            commands_obs[:, [0, 1]] = commands_obs[:, [1, 0]]
             self.obs_buf = torch.cat((self.projected_gravity, #[B, 3]
-                                      self.commands * self.commands_scale, #[B, 15]
+                                      commands_obs * self.commands_scale, #[B, 15]
                                       (self.dof_pos[:, :self.num_actuated_dof] - self.default_dof_pos[:,
                                                                                  :self.num_actuated_dof]) * self.obs_scales.dof_pos, #[B, 12]
                                       self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel, #[B, 12]
                                       self.actions #[B, 12]
                                       ), dim=-1)
+            
+            # self.obs_buf = torch.cat((self.projected_gravity, #[B, 3]
+            #                           self.commands * self.commands_scale, #[B, 15]
+            #                           (self.dof_pos[:, :self.num_actuated_dof] - self.default_dof_pos[:,
+            #                                                                      :self.num_actuated_dof]) * self.obs_scales.dof_pos, #[B, 12]
+            #                           self.dof_vel[:, :self.num_actuated_dof] * self.obs_scales.dof_vel, #[B, 12]
+            #                           self.actions #[B, 12]
+            #                           ), dim=-1)
 
         if self.cfg.env.observe_two_prev_actions:
             self.obs_buf = torch.cat((self.obs_buf,

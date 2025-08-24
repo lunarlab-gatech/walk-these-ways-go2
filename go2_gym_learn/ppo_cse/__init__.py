@@ -5,6 +5,8 @@ import os
 import wandb
 import torch
 from params_proto import PrefixProto
+import numpy as np
+from tqdm import tqdm
 
 from .rollout_storage import RolloutStorage
 from .config import RunnerArgs
@@ -131,7 +133,12 @@ class Runner:
         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
 
         tot_iter = self.current_learning_iteration + num_learning_iterations
-        for it in range(self.current_learning_iteration, tot_iter):
+        
+        pbar = tqdm(range(self.current_learning_iteration, tot_iter), 
+            desc="Training Progress", 
+            unit="iter")
+        
+        for it in pbar:
             start = time.time()
             # Rollout
             with torch.inference_mode():
@@ -252,9 +259,31 @@ class Runner:
             
             # Log at log frequency with wandb
             if it % RunnerArgs.log_freq == 0:
+                # calculate mean values
+                mean_reward = np.mean(rewbuffer) if len(rewbuffer) > 0 else 0
+                mean_length = np.mean(lenbuffer) if len(lenbuffer) > 0 else 0
+                mean_eval_reward = np.mean(rewbuffer_eval) if len(rewbuffer_eval) > 0 else 0
+                
+                # print(f"Iteration {it:6d} | "
+                #     f"Train Reward: {mean_reward:6.2f} | "
+                #     f"Train Length: {mean_length:6.2f} | "
+                #     f"Eval Reward: {mean_eval_reward:6.2f} | "
+                #     f"Value Loss: {mean_value_loss:6.4f} | "
+                #     f"Policy Loss: {mean_surrogate_loss:6.4f} | "
+                #     f"Adaptation Loss: {mean_adaptation_module_loss:6.4f}")
+                
+                pbar.set_postfix({
+                    'Reward': f'{mean_reward:.2f}',
+                    'Value Loss': f'{mean_value_loss:.4f}',
+                    'Policy Loss': f'{mean_surrogate_loss:.4f}'
+                })
+                
                 wandb.log({
                     "timesteps": self.tot_timesteps,
-                    "iterations": it
+                    "iterations": it,
+                    "train/mean_reward": mean_reward,
+                    "train/mean_episode_length": mean_length,
+                    "eval/mean_reward": mean_eval_reward
                 }, step=it)
 
             if it % RunnerArgs.save_interval == 0:
@@ -308,13 +337,13 @@ class Runner:
             self.env.start_recording()
             if self.env.num_eval_envs > 0:
                 self.env.start_recording_eval()
-            print("START RECORDING")
+            # print("START RECORDING")
             self.last_recording_it = it
 
         frames = self.env.get_complete_frames()
         if len(frames) > 0:
             self.env.pause_recording()
-            print("LOGGING VIDEO")
+            # print("LOGGING VIDEO")
             
             try:
                 # Use imageio for better compatibility (same as ml_logger)
@@ -340,7 +369,7 @@ class Runner:
                 if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
                     # Upload to wandb
                     wandb.log({"video": wandb.Video(video_path, format="mp4")}, step=it)
-                    print(f"Video saved successfully: {video_path}")
+                    # print(f"Video saved successfully: {video_path}")
                 else:
                     print(f"Warning: Video file was not created or is empty: {video_path}")
                     
@@ -351,7 +380,7 @@ class Runner:
             frames = self.env.get_complete_frames_eval()
             if len(frames) > 0:
                 self.env.pause_recording_eval()
-                print("LOGGING EVAL VIDEO")
+                # print("LOGGING EVAL VIDEO")
                 
                 try:
                     # Log evaluation video with wandb using imageio
@@ -372,7 +401,7 @@ class Runner:
                     if os.path.exists(video_path) and os.path.getsize(video_path) > 0:
                         # Upload to wandb
                         wandb.log({"eval_video": wandb.Video(video_path, format="mp4")}, step=it)
-                        print(f"Eval video saved successfully: {video_path}")
+                        # print(f"Eval video saved successfully: {video_path}")
                     else:
                         print(f"Warning: Eval video file was not created or is empty: {video_path}")
                         
