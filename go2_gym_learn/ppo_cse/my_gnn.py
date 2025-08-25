@@ -148,9 +148,9 @@ class myGNN(torch.nn.Module):
                                     [1, 4, 7, 10, 2, 3, 5, 6, 8, 9, 11, 12]])
         
         # TODO: Connect all foot nodes, TESTING!
-        node_2_node = torch.cat([node_2_node,
-                                 torch.tensor([[3, 9, 3, 6, 3, 6],
-                                               [6, 12, 9, 12, 12, 9]])], dim=1)
+        # node_2_node = torch.cat([node_2_node,
+        #                          torch.tensor([[3, 9, 3, 6, 3, 6],
+        #                                        [6, 12, 9, 12, 12, 9]])], dim=1)
 
         edge_index = torch.cat([
             node_2_node, node_2_node.flip(0)
