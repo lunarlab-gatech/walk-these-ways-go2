@@ -7,6 +7,13 @@ This repository is forked from [walk-these-ways](https://github.com/Improbable-A
 However, the brand-new architecture [unitree-sdk2 ](https://github.com/unitreerobotics/unitree_sdk2)is not based on UDP anymore, so this project aims to train and deploy walk-these-ways on Unitree Go2 by modifying SDK interfaces.
 
 ## Requirements 
+* This repo
+    Clone this repository and install:
+    ``` bash
+    git clone https://github.com/lunarlab-gatech/walk-these-ways-go2.git
+    cd walk-these-ways-go2
+    pip install -e .
+    ```
 * miniconda
     ```bash
     conda create -n wtw python==3.8.20
@@ -31,19 +38,16 @@ However, the brand-new architecture [unitree-sdk2 ](https://github.com/unitreero
     4. modify the 'np.float' to 'float' in `isaacgym/python/isaacgym/torch_utils.py` line 135.
     5. [Optional] 
         `echo "export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}" >> ~/.bashrc`
+* `MorphoSymm`
+    ```
+    cd MorphoSymm/
+    pip install -e .
+    ```
 
 * Nvidia GPU with at least 8GB of VRAM
 
 ---
 ## Train and Play
-Clone this repository and install:
-
-``` bash
-git clone https://github.com/Teddy-Liao/walk-these-ways-go2.git
-cd walk-these-ways-go2
-pip install -e .
-pip install torch_geometric==2.6.1 wandb
-```
 
 Start training: 
 ```bash
