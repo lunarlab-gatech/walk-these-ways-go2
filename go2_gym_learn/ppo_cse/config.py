@@ -54,7 +54,7 @@ class AC_Args(PrefixProto, cli=False):
         
     # GNN specific configuration
     class gnn(PrefixProto, cli=False):
-        hidden_dim = 128
+        hidden_dim = 64
         num_layers = 8
         activation = 'elu'
         num_envs = 4096 # NOTE: this should be set to the number of environments in the environment
@@ -65,3 +65,11 @@ class AC_Args(PrefixProto, cli=False):
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [512, 256, 128]
         activation = 'elu'
+        
+    # MS-GNN specific configuration
+    class msgnn(PrefixProto, cli=False):
+        hidden_dim = 128
+        num_layers = 8
+        activation = 'elu'
+        num_envs = 4096 # NOTE: this should be set to the number of environments in the environment
+        num_env_mini_batch = num_envs * RunnerArgs.num_steps_per_env // PPO_Args.num_mini_batches

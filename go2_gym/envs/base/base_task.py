@@ -34,7 +34,7 @@ class BaseTask(gym.Env):
         # graphics device for rendering, -1 for no rendering
         self.graphics_device_id = self.sim_device_id
         if self.headless == True:
-            self.graphics_device_id = -1 # self.sim_device_id
+            self.graphics_device_id = self.sim_device_id # TODO: set to -1 for no rendering, but this is not working
 
         self.num_obs = cfg.env.num_observations
         self.num_privileged_obs = cfg.env.num_privileged_obs
@@ -49,7 +49,7 @@ class BaseTask(gym.Env):
             self.num_train_envs = cfg.env.num_envs
             self.num_envs = cfg.env.num_envs
 
-        # optimization flags for pytorch JIT
+        # optimization flags for pytorch JIT # TODO: there is jit, should we use it?
         torch._C._jit_set_profiling_mode(False)
         torch._C._jit_set_profiling_executor(False)
 

@@ -7,8 +7,13 @@ class myGNN(torch.nn.Module):
     """
     Standard GNN for the graph structure with 13 nodes (1 base + 12 joint)
     """
-    def __init__(self, hidden_channels: int, num_layers: int, 
-                 activation_fn = nn.ELU(), num_envs: int = 4096, num_env_mini_batch: int = 4096, is_critic: bool = False):
+    def __init__(self,
+                 hidden_channels: int, 
+                 num_layers: int, 
+                 activation_fn = nn.ELU(), 
+                 num_envs: int = 4096,
+                 num_env_mini_batch: int = 4096,
+                 is_critic: bool = False):
         """
         Implementation of a standard GNN model for the graph structure.
 
@@ -161,7 +166,7 @@ class myGNN(torch.nn.Module):
     def _create_joint_indices_batch(self, batch_size):
         '''
         Create joint indices for batch size
-        Extract only joint nodes (indices 2-13)
+        Extract only joint nodes (indices 1-12)
         '''
         joint_indices = torch.arange(self.num_base_nodes, self.num_nodes)
         joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).repeat_interleave(self.num_nodes - self.num_base_nodes)
@@ -220,7 +225,7 @@ class myGNN(torch.nn.Module):
             print(f"-------Unknown batch size: {batch_size}-------")
             edge_index = self._create_edge_index_batch(batch_size).to(self.device)
         
-        # Shape: [b, 1, T*19 (+23 if critic)], [b, 6, T*3 (+6 if critic)], [b, 6, T*4 (+5 if critic)], [2, b*13]
+        # Shape: [b, 1, T*19 +2], [b, 6, T*3 (+6 if critic)], [b, 6, T*4 (+5 if critic)], [2, b*12]
         return base_feature, front_joint_feature, rear_joint_feature, edge_index
     
     def forward(self, obs):
@@ -262,7 +267,7 @@ class myGNN(torch.nn.Module):
             # For critic, use all node embeddings
             x_reshaped = x.reshape(batch_size, -1)  # [batch_size, num_nodes * hidden_channels]
             final_output = self.decoder(x_reshaped)  # [batch_size, 1]
-        else:
+        else: # actor
             if batch_size == self.batch_size:
                 joint_x = x[self.joint_indices_batch]  # [batch_size * 12, hidden_channels]
             elif batch_size == self.mini_batch_size:
@@ -277,7 +282,9 @@ class myGNN(torch.nn.Module):
     
     def reset_parameters(self):
         """Reset all learnable parameters"""
-        self.encoder.reset_parameters()
+        self.base_encoder.reset_parameters()
+        self.F_joint_encoder.reset_parameters()
+        self.R_joint_encoder.reset_parameters()
         for conv in self.convs:
             conv.reset_parameters()
         if isinstance(self.decoder, nn.Sequential):

@@ -1,6 +1,6 @@
 import argparse
 
-def train_go2(headless=True, network_architecture="mlp", num_learning_iterations=30000):
+def train_go2(headless=True, network_architecture="mlp", num_learning_iterations=30000, gpu_id=0):
 
     import isaacgym
     assert isaacgym
@@ -210,7 +210,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.commands.binary_phases = True
     Cfg.commands.gaitwise_curricula = True
 
-    env = VelocityTrackingEasyEnv(sim_device='cuda:0', headless=headless, cfg=Cfg)
+    env = VelocityTrackingEasyEnv(sim_device=f'cuda:{gpu_id}', headless=headless, cfg=Cfg)
     
     AC_Args.network_architecture = network_architecture
 
@@ -242,7 +242,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
                config=parameters)
 
     env = HistoryWrapper(env)
-    gpu_id = 0
+    # gpu_id = 0
     runner = Runner(env, device=f"cuda:{gpu_id}", training_root=training_root)
     runner.learn(num_learning_iterations=num_learning_iterations, init_at_random_ep_len=True, eval_freq=100)
     
@@ -288,7 +288,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--network-architecture', 
                        type=str, 
                        default='mlp',
-                       choices=['mlp', 'emlp', 'gnn'],
+                       choices=['mlp', 'emlp', 'gnn', 'msgnn'],
                        help='Network architecture to use (default: mlp)')
     parser.add_argument('--headless', 
                        action='store_true',
@@ -301,6 +301,10 @@ if __name__ == '__main__':
                        type=int, 
                        default=30000, # original value: 100,000
                        help='Number of learning iterations (default: 30000)')
+    parser.add_argument('-g', '--gpu-id', 
+                       type=int, 
+                       default=0,
+                       help='GPU ID to use (default: 0, -1 for no rendering)')
     
     parser.set_defaults(headless=False)
     
@@ -308,6 +312,11 @@ if __name__ == '__main__':
     
     print(f"Training with network architecture: {args.network_architecture}")
     print(f"Headless mode: {args.headless}")
+    print(f"GPU ID: {args.gpu_id}")
     print(f"Number of learning iterations: {args.num_learning_iterations}")
     
-    train_go2(headless=args.headless, network_architecture=args.network_architecture, num_learning_iterations=args.num_learning_iterations)
+    train_go2(headless=args.headless, 
+              network_architecture=args.network_architecture, 
+              num_learning_iterations=args.num_learning_iterations,
+              gpu_id=args.gpu_id
+              )

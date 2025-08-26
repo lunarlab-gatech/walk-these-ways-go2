@@ -15,6 +15,7 @@ from .config import AC_Args
 from .actor_critic import ActorCritic
 from .actor_critic_emlp import ActorCriticEMLP
 from .actor_critic_gnn import ActorCriticGNN
+from .actor_critic_ms_gnn import ActorCriticMSGNN
 
 def class_to_dict(obj) -> dict:
     if not hasattr(obj, "__dict__"):
@@ -59,6 +60,8 @@ class Runner:
             ActorCriticClass = ActorCriticEMLP
         elif AC_Args.network_architecture == "gnn":
             ActorCriticClass = ActorCriticGNN
+        elif AC_Args.network_architecture == "msgnn":
+            ActorCriticClass = ActorCriticMSGNN
 
         actor_critic = ActorCriticClass(self.env.num_obs,
                                       self.env.num_privileged_obs,
