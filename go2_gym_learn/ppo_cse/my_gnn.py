@@ -8,6 +8,9 @@ class myGNN(torch.nn.Module):
     Standard GNN for the graph structure with 13 nodes (1 base + 12 joint)
     """
     def __init__(self,
+                 num_obs: int,
+                 num_privileged_obs: int,
+                 num_obs_history: int,
                  hidden_channels: int, 
                  num_layers: int, 
                  activation_fn = nn.ELU(), 
@@ -18,6 +21,9 @@ class myGNN(torch.nn.Module):
         Implementation of a standard GNN model for the graph structure.
 
         Parameters:
+            num_obs (int): Number of common observations.
+            num_privileged_obs (int): Number of privileged observations.
+            num_obs_history (int): Number of observation history.
             hidden_channels (int): Size of the node embeddings in the graph.
             num_layers (int): Number of message-passing layers.
             activation_fn (class): The activation function used between layers.
@@ -73,8 +79,8 @@ class myGNN(torch.nn.Module):
             | 11    | RR-thigh  | 28, 40, 52, 64, 69 | 0, 1          |
             | 12    | RR-knee   | 29, 41, 53, 65, 69 | 0, 1          |
             '''
-            self.num_timesteps = 30   # obs_history_length
-            self.dim_common_obs = 70  # num_obs
+            self.num_timesteps = num_obs_history   # obs_history_length
+            self.dim_common_obs = num_obs  # num_obs
             self.node_dict = {
                 0: {'name': 'base', 'common': [*range(18)], 'privileged': [0, 1]},
                 1: {'name': 'FL-hip', 'common': [18, 30, 42, 54, 66], 'privileged': [0, 1]},
@@ -225,7 +231,7 @@ class myGNN(torch.nn.Module):
             print(f"-------Unknown batch size: {batch_size}-------")
             edge_index = self._create_edge_index_batch(batch_size).to(self.device)
         
-        # Shape: [b, 1, T*19 +2], [b, 6, T*3 (+6 if critic)], [b, 6, T*4 (+5 if critic)], [2, b*12]
+        # Shape: [b, 1, T*18+2], [b, 6, T*5+2], [b, 6, T*5+2], [2, b*12]
         return base_feature, front_joint_feature, rear_joint_feature, edge_index
     
     def forward(self, obs):
