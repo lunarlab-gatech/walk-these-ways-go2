@@ -10,7 +10,7 @@ class myGNN(torch.nn.Module):
     def __init__(self,
                  num_obs: int,
                  num_privileged_obs: int,
-                 num_obs_history: int,
+                 num_timesteps: int,
                  hidden_channels: int, 
                  num_layers: int, 
                  activation_fn = nn.ELU(), 
@@ -23,7 +23,7 @@ class myGNN(torch.nn.Module):
         Parameters:
             num_obs (int): Number of common observations.
             num_privileged_obs (int): Number of privileged observations.
-            num_obs_history (int): Number of observation history.
+            num_timesteps (int): Number of timesteps in the observation history.
             hidden_channels (int): Size of the node embeddings in the graph.
             num_layers (int): Number of message-passing layers.
             activation_fn (class): The activation function used between layers.
@@ -79,7 +79,7 @@ class myGNN(torch.nn.Module):
             | 11    | RR-thigh  | 28, 40, 52, 64, 69 | 0, 1          |
             | 12    | RR-knee   | 29, 41, 53, 65, 69 | 0, 1          |
             '''
-            self.num_timesteps = num_obs_history   # obs_history_length
+            self.num_timesteps = num_timesteps   # number of timesteps in the observation history
             self.dim_common_obs = num_obs  # num_obs
             self.node_dict = {
                 0: {'name': 'base', 'common': [*range(18)], 'privileged': [0, 1]},
