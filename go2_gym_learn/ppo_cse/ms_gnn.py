@@ -5,9 +5,12 @@ from torch_geometric.nn import Linear, GraphConv
 
 class MS_GNN(torch.nn.Module):
     """
-    Standard GNN for the C2 graph structure with 14 nodes (2 base + 12 joint)
+    MS-GNN for the C2 graph structure with 14 nodes (2 base + 12 joint)
     """
     def __init__(self,
+                 num_obs: int,
+                 num_privileged_obs: int,
+                 num_timesteps: int,
                  hidden_channels: int, 
                  num_layers: int, 
                  activation_fn = nn.ELU(), 
@@ -18,6 +21,9 @@ class MS_GNN(torch.nn.Module):
         Implementation of a MS-GNN model for C2 structure.
 
         Parameters:
+            num_obs (int): Number of common observations.
+            num_privileged_obs (int): Number of privileged observations.
+            num_timesteps (int): Number of timesteps in the observation history.
             hidden_channels (int): Size of the node embeddings in the graph.
             num_layers (int): Number of message-passing layers.
             activation_fn (class): The activation function used between layers.
@@ -74,8 +80,8 @@ class MS_GNN(torch.nn.Module):
             | 12    | RR-thigh  | 28, 40, 52, 64, 69 | 0, 1          |
             | 13    | RR-knee   | 29, 41, 53, 65, 69 | 0, 1          |
             '''
-            self.num_timesteps = 30   # obs_history_length
-            self.dim_common_obs = 70  # num_obs
+            self.num_timesteps = num_timesteps   # obs_history_length
+            self.dim_common_obs = num_obs  # num_obs
             self.node_dict = {
                 0: {'name': 'base-L', 'common': [*range(18)], 'privileged': [0, 1]},
                 1: {'name': 'base-R', 'common': [*range(18)], 'privileged': [0, 1]},
@@ -104,19 +110,19 @@ class MS_GNN(torch.nn.Module):
             # Define the group action
             linear_weights_base_e = torch.ones((self.node_type_dict['base']['common_input_dim']), dtype=torch.float32).repeat(self.num_timesteps)
             linear_weights_base_gs = torch.tensor([
-                                                    1, -1, 1, # gravity 
-                                                    1, -1, -1, # commands
-                                                    1, 1, 
-                                                    1, 1, 1, 1, 
-                                                    1, 1, -1, 1, 1, 
-                                                    1
+                                                    1, -1, 1,              # projected gravity x, y, z
+                                                    1, -1, -1,             # vel_x, vel_y, vel_yaw
+                                                    1, 1,                  # body_height, gait_freq
+                                                    1, 1, 1, 1,            # gait_phase, _offset, _bound, _duration
+                                                    1, 1, -1, 1, 1,        # swing_height, vel_pitch, vel_roll, stand_width, _length
+                                                    1                      # aux_reward
                                                 ], dtype=torch.float32).repeat(self.num_timesteps)
             linear_weights_F_joint_e = torch.ones((self.node_type_dict['F-joint']['common_input_dim']), dtype=torch.float32).repeat(self.num_timesteps)
-            linear_weights_F_joint_gs = torch.tensor([-1, -1, -1, -1, 1 # pos, velocity, last_action, curr_action, phase input
+            linear_weights_F_joint_gs = torch.tensor([-1, -1, -1, -1, 1 # pos, velocity, curr_action, last_action, phase input
                                                       ], dtype=torch.float32).repeat(self.num_timesteps)
             self.permutation_F_joint_indices = [4 + i * 5 for i in range(self.num_timesteps)]
             linear_weights_R_joint_e = torch.ones((self.node_type_dict['R-joint']['common_input_dim']), dtype=torch.float32).repeat(self.num_timesteps)
-            linear_weights_R_joint_gs = torch.tensor([-1, -1, -1, -1, 1 # pos, velocity, last_action, curr_action, phase input
+            linear_weights_R_joint_gs = torch.tensor([-1, -1, -1, -1, 1 # pos, velocity, curr_action, last_action, phase input
                                                       ], dtype=torch.float32).repeat(self.num_timesteps)
             self.permutation_R_joint_indices = [4 + i * 5 for i in range(self.num_timesteps)]
             

@@ -21,7 +21,7 @@ class ActorCriticMSGNN(ActorCritic):
                  num_privileged_obs,
                  num_obs_history,
                  num_actions,
-                 network_architecture="gnn",
+                 network_architecture="msgnn",
                  **kwargs):
         if kwargs:
             print("ActorCriticMSGNN.__init__ got unexpected arguments, which will be ignored: " + str(
@@ -60,13 +60,9 @@ class ActorCriticMSGNN(ActorCritic):
         # self._create_networks()
         
         self.actor_body = self.create_actor(
-            hidden_dim=AC_Args.msgnn.hidden_dim,
-            num_layers=AC_Args.msgnn.num_layers,
-            num_envs=AC_Args.msgnn.num_envs,
-            num_env_mini_batch=AC_Args.msgnn.num_env_mini_batch,
-            activation=get_activation(AC_Args.msgnn.activation)
-        )
-        self.critic_body = self.create_critic(
+            num_obs=num_obs,
+            num_privileged_obs=num_privileged_obs,
+            num_timesteps=num_obs_history//num_obs, # NOTE: this is the number of timesteps in the observation history
             hidden_dim=AC_Args.msgnn.hidden_dim,
             num_layers=AC_Args.msgnn.num_layers,
             num_envs=AC_Args.msgnn.num_envs,
@@ -74,7 +70,26 @@ class ActorCriticMSGNN(ActorCritic):
             activation=get_activation(AC_Args.msgnn.activation)
         )
         print(f"Actor MS-GNN: {self.actor_body}")
-        print(f"Critic MS-GNN: {self.critic_body}")
+        
+        if AC_Args.msgnn.use_critic_mlp:
+            self.critic_body = self.create_critic_mlp(
+                input_dim=self.num_obs_history + self.num_privileged_obs,
+                critic_hidden_dims=AC_Args.msgnn.mlp.critic_hidden_dims,
+                activation=get_activation(AC_Args.msgnn.mlp.activation)
+            )
+            print(f"Critic MLP: {self.critic_body}")
+        else:
+            self.critic_body = self.create_critic(
+                num_obs=self.num_obs,
+                num_privileged_obs=self.num_privileged_obs,
+                num_timesteps=num_obs_history//num_obs,
+                hidden_dim=AC_Args.msgnn.hidden_dim,
+                num_layers=AC_Args.msgnn.num_layers,
+                num_envs=AC_Args.msgnn.num_envs,
+                num_env_mini_batch=AC_Args.msgnn.num_env_mini_batch,
+                activation=get_activation(AC_Args.msgnn.activation)
+            )
+            print(f"Critic MS-GNN: {self.critic_body}")
 
         # Action noise
         self.std = nn.Parameter(AC_Args.init_noise_std * torch.ones(num_actions))
@@ -82,8 +97,11 @@ class ActorCriticMSGNN(ActorCritic):
         # disable args validation for speedup
         Normal.set_default_validate_args = False
         
-    def create_actor(self, hidden_dim: int, num_layers: int, num_envs: int, num_env_mini_batch: int, activation: nn.Module) -> nn.Module:
+    def create_actor(self, num_obs: int, num_privileged_obs: int, num_timesteps: int, hidden_dim: int, num_layers: int, num_envs: int, num_env_mini_batch: int, activation: nn.Module) -> nn.Module:
         return MS_GNN(
+            num_obs=num_obs,
+            num_privileged_obs=num_privileged_obs,
+            num_timesteps=num_timesteps,
             hidden_channels=hidden_dim,
             num_layers=num_layers,
             activation_fn=activation,
@@ -92,8 +110,11 @@ class ActorCriticMSGNN(ActorCritic):
             is_critic=False
         )
     
-    def create_critic(self, hidden_dim: int, num_layers: int, num_envs: int, num_env_mini_batch: int, activation: nn.Module) -> nn.Module:
+    def create_critic(self, num_obs: int, num_privileged_obs: int, num_timesteps: int, hidden_dim: int, num_layers: int, num_envs: int, num_env_mini_batch: int, activation: nn.Module) -> nn.Module:
         return MS_GNN(
+            num_obs=num_obs,
+            num_privileged_obs=num_privileged_obs,
+            num_timesteps=num_timesteps,
             hidden_channels=hidden_dim,
             num_layers=num_layers,
             activation_fn=activation,
@@ -101,6 +122,20 @@ class ActorCriticMSGNN(ActorCritic):
             num_env_mini_batch=num_env_mini_batch,
             is_critic=True
         )
+        
+    def create_critic_mlp(self, input_dim: int, critic_hidden_dims: list, activation: nn.Module) -> nn.Module:
+        layers = []
+        layers.append(nn.Linear(input_dim, critic_hidden_dims[0]))
+        layers.append(activation)
+        
+        for l in range(len(critic_hidden_dims)):
+            if l == len(critic_hidden_dims) - 1:
+                layers.append(nn.Linear(critic_hidden_dims[l], 1))
+            else:
+                layers.append(nn.Linear(critic_hidden_dims[l], critic_hidden_dims[l + 1]))
+                layers.append(activation)
+        
+        return nn.Sequential(*layers)
 
     # def _create_networks(self):
     #     """Create the networks for the actor and critic"""

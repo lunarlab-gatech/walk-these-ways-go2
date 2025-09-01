@@ -81,7 +81,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
 
     Cfg.env.num_privileged_obs = 2
-    Cfg.env.num_observation_history = 10 # original value: 30
+    Cfg.env.num_observation_history = 30 # TODO: original value: 30
     Cfg.reward_scales.feet_contact_forces = 0.0
 
     Cfg.domain_rand.rand_interval_s = 4
