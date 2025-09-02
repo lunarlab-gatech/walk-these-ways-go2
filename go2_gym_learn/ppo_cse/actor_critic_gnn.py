@@ -17,10 +17,10 @@ from go2_gym_learn.ppo_cse import ActorCritic
 class ActorCriticGNN(ActorCritic):
     is_recurrent = False
 
-    def __init__(self, num_obs,
-                 num_privileged_obs,
-                 num_obs_history,
-                 num_actions,
+    def __init__(self, num_obs, # dim_common_obs at one timestep (70)
+                 num_privileged_obs, # dim_privileged_obs at one timestep (2)
+                 num_obs_history, # dim_common_obs * num_timesteps (70 * 30)
+                 num_actions, # 12
                  network_architecture="gnn",
                  **kwargs):
         if kwargs:

@@ -81,7 +81,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.env.priv_observe_gravity_transformed_foot_displacement = False
 
     Cfg.env.num_privileged_obs = 2
-    Cfg.env.num_observation_history = 30 # TODO: original value: 30
+    Cfg.env.num_observation_history = 30
     Cfg.reward_scales.feet_contact_forces = 0.0
 
     Cfg.domain_rand.rand_interval_s = 4
@@ -154,10 +154,10 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.rewards.only_positive_rewards_ji22_style = True
     Cfg.rewards.sigma_rew_neg = 0.02
 
-    Cfg.commands.lin_vel_x = [-1.0, 1.0]
-    Cfg.commands.lin_vel_y = [-0.6, 0.6]
+    Cfg.commands.lin_vel_x = [0.0, 0.0] # [-1.0, 1.0]
+    Cfg.commands.lin_vel_y = [-0.6, 0.0] # [-0.6, 0.6]
     # Cfg.commands.lin_vel_y = [-0.6, -0.1]
-    Cfg.commands.ang_vel_yaw = [-1.0, 1.0]
+    Cfg.commands.ang_vel_yaw = [0.0, 0.0] # [-1.0, 1.0]
     Cfg.commands.body_height_cmd = [-0.25, 0.15]
     Cfg.commands.gait_frequency_cmd_range = [2.0, 4.0]
     Cfg.commands.gait_phase_cmd_range = [0.0, 1.0]
@@ -170,10 +170,10 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.commands.stance_width_range = [0.10, 0.45]
     Cfg.commands.stance_length_range = [0.35, 0.45]
 
-    Cfg.commands.limit_vel_x = [-5.0, 5.0]
-    Cfg.commands.limit_vel_y = [-0.6, 0.6]
+    Cfg.commands.limit_vel_x = [-0.0, 0.0] # [-5.0, 5.0]
+    Cfg.commands.limit_vel_y = [-1, -0] # [-0.6, 0.6]
     # Cfg.commands.limit_vel_y = [-0.6, -0.1]
-    Cfg.commands.limit_vel_yaw = [-5.0, 5.0]
+    Cfg.commands.limit_vel_yaw = [0.0, 0.0] # [-5.0, 5.0]
     Cfg.commands.limit_body_height = [-0.25, 0.15]
     Cfg.commands.limit_gait_frequency = [2.0, 4.0]
     Cfg.commands.limit_gait_phase = [0.0, 1.0]
@@ -186,9 +186,9 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.commands.limit_stance_width = [0.10, 0.45]
     Cfg.commands.limit_stance_length = [0.35, 0.45]
 
-    Cfg.commands.num_bins_vel_x = 21
-    Cfg.commands.num_bins_vel_y = 1
-    Cfg.commands.num_bins_vel_yaw = 21
+    Cfg.commands.num_bins_vel_x = 1 # 21
+    Cfg.commands.num_bins_vel_y = 21 # 1
+    Cfg.commands.num_bins_vel_yaw = 1 # 21
     Cfg.commands.num_bins_body_height = 1
     Cfg.commands.num_bins_gait_frequency = 1
     Cfg.commands.num_bins_gait_phase = 1
