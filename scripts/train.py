@@ -85,7 +85,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.reward_scales.feet_contact_forces = 0.0
 
     Cfg.domain_rand.rand_interval_s = 4
-    Cfg.commands.num_commands = 15
+    Cfg.commands.num_commands = 15  # TODO: change to 4?
     Cfg.env.observe_two_prev_actions = True
     Cfg.env.observe_yaw = False
     Cfg.env.num_observations = 70
@@ -208,7 +208,7 @@ def train_go2(headless=True, network_architecture="mlp", num_learning_iterations
     Cfg.commands.exclusive_phase_offset = False
     Cfg.commands.pacing_offset = False
     Cfg.commands.binary_phases = True
-    Cfg.commands.gaitwise_curricula = True
+    Cfg.commands.gaitwise_curricula = True # TODO: what's this?
 
     env = VelocityTrackingEasyEnv(sim_device=f'cuda:{gpu_id}', headless=headless, cfg=Cfg)
     

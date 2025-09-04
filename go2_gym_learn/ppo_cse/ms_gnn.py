@@ -329,7 +329,7 @@ class MS_GNN(torch.nn.Module):
             # joint_x = x[joint_indices]  # [batch_size * 12, hidden_channels]
             
             # final_output = self.decoder(joint_x).reshape(batch_size, self.num_nodes - self.num_base_nodes)  # [batch_size, 12]
-            # final_output = self.ms_joint_decoder(final_output)
+            final_output = self.ms_joint_decoder(final_output) # Note: this is commented out in the original code
 
         return final_output
     

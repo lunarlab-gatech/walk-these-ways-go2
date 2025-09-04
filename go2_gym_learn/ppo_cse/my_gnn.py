@@ -108,9 +108,9 @@ class myGNN(torch.nn.Module):
         self.len_common_obs = self.num_timesteps * self.dim_common_obs
         
         # Create separate encoders for base, F-joint, R-joint nodes
-        self.base_encoder = nn.Linear(self.node_type_dict['base']['common_input_dim']*self.num_timesteps + self.node_type_dict['base']['privileged_input_dim'], hidden_channels)
-        self.F_joint_encoder = nn.Linear(self.node_type_dict['F-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['F-joint']['privileged_input_dim'], hidden_channels)
-        self.R_joint_encoder = nn.Linear(self.node_type_dict['R-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['R-joint']['privileged_input_dim'], hidden_channels)
+        self.base_encoder = nn.Linear(self.node_type_dict['base']['common_input_dim']*self.num_timesteps + self.node_type_dict['base']['privileged_input_dim'], hidden_channels) # 542->128
+        self.F_joint_encoder = nn.Linear(self.node_type_dict['F-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['F-joint']['privileged_input_dim'], hidden_channels) # 152->128
+        self.R_joint_encoder = nn.Linear(self.node_type_dict['R-joint']['common_input_dim']*self.num_timesteps + self.node_type_dict['R-joint']['privileged_input_dim'], hidden_channels) # 152->128
         
         # Create standard graph convolutions for each layer
         self.convs = torch.nn.ModuleList()
@@ -126,13 +126,13 @@ class myGNN(torch.nn.Module):
                 Linear(hidden_channels * self.num_nodes, hidden_channels),
                 self.activation,
                 Linear(hidden_channels, 1)
-            )
+            )  # TODO: MS-GNN critic net  
         else:
-            self.decoder = Linear(hidden_channels, self.out_channels_per_node)
+            self.decoder = Linear(hidden_channels, self.out_channels_per_node) # 128 -> 1
 
         # Create batched edge indices for common batch sizes
         self.edge_index_batch = self._create_edge_index_batch(self.batch_size).to(self.device)
-        self.edge_index_batch_mini = self._create_edge_index_batch(self.mini_batch_size).to(self.device)
+        self.edge_index_batch_mini = self._create_edge_index_batch(self.mini_batch_size).to(self.device) # 4096*6
         
         # Create batched joint indices for common batch sizes
         self.joint_indices_batch = self._create_joint_indices_batch(self.batch_size).to(self.device)
@@ -155,7 +155,7 @@ class myGNN(torch.nn.Module):
 
     def _create_edges_index(self):
         # Define all connections in a single edge_index tensor        
-        node_2_node = torch.tensor([[0, 0, 0, 0, 1, 2, 4, 5, 7, 8, 10, 11],
+        node_2_node = torch.tensor([[0, 0, 0, 0, 1, 2, 4, 5, 7, 8, 10, 11],   # 13-14    ... 4096*13, 4096*13+1
                                     [1, 4, 7, 10, 2, 3, 5, 6, 8, 9, 11, 12]])
         
         # TODO: Connect all foot nodes, TESTING!
@@ -175,17 +175,17 @@ class myGNN(torch.nn.Module):
         Extract only joint nodes (indices 1-12)
         '''
         joint_indices = torch.arange(self.num_base_nodes, self.num_nodes)
-        joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).repeat_interleave(self.num_nodes - self.num_base_nodes)
+        joint_indices = joint_indices.repeat(batch_size) + torch.arange(0, batch_size * self.num_nodes, self.num_nodes).repeat_interleave(self.num_nodes - self.num_base_nodes) # 4096*12 [1, 2,3, 4, .., 12, 14, 15, ...]
 
         return joint_indices
 
-    def _obs_to_graph_features(self, obs_all):
+    def _obs_to_graph_features(self, obs_all): # [4096, 2102]
         """
         Convert observations into features for each node in a batch of graphs.
         """
         batch_size = obs_all.shape[0]
-        common_obs = obs_all[:, :self.len_common_obs].clone()
-        common_obs = common_obs.reshape(batch_size, self.num_timesteps, -1)
+        common_obs = obs_all[:, :self.len_common_obs].clone() # [4096, 2100]
+        common_obs = common_obs.reshape(batch_size, self.num_timesteps, -1) # [4096, 30, 70] # [4096, 70, 30]
         
         base_feature_list = []
         for node_idx in self.node_type_dict['base']['node_indices']:
@@ -234,7 +234,7 @@ class myGNN(torch.nn.Module):
         # Shape: [b, 1, T*18+2], [b, 6, T*5+2], [b, 6, T*5+2], [2, b*12]
         return base_feature, front_joint_feature, rear_joint_feature, edge_index
     
-    def forward(self, obs):
+    def forward(self, obs): # [4096, 2102]
         batch_size = obs.shape[0]
         
         if batch_size == 0:
